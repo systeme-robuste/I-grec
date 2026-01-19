@@ -1,0 +1,2548 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>I-grec - Réseau Social Nouvelle Génération</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+        .animate-bounce {
+            animation: bounce 2s infinite;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <div id="app"></div>
+
+    <script>
+        const App = {
+            user: null,
+            showAuth: true,
+            phone: '',
+            code: '',
+            step: 'phone',
+            activeTab: 'home',
+            activeSubTab: 'bete-pro',
+            showCreateModal: false,
+            showBlogEditor: false,
+            showForumCreator: false,
+            showPhiloneisteCreator: false,
+            showMessages: false,
+            showNotifications: false,
+            showPayment: false,
+            showVideoCall: false,
+            showFileUpload: false,
+            showTranslator: false,
+            showStories: false,
+            showCreateStory: false,
+            showPoll: false,
+            showAnalytics: false,
+            showBadges: false,
+            showMarketplace: false,
+            showLiveStream: false,
+            showAIAssistant: false,
+            videoCallActive: false,
+            micMuted: false,
+            cameraOff: false,
+            selectedLanguage: 'fr',
+            userBadges: [
+                { id: 1, name: 'Pionnier', icon: '🚀', description: 'Premier utilisateur', earned: true, date: '01/01/2026' },
+                { id: 2, name: 'Créateur Pro', icon: '✨', description: '100 publications', earned: true, date: '05/01/2026' },
+                { id: 3, name: 'Influenceur', icon: '⭐', description: '10K abonnés', earned: false, progress: 23 },
+                { id: 4, name: 'Expert IA', icon: '🤖', description: 'Utiliser l\'IA 50 fois', earned: true, date: '10/01/2026' }
+            ],
+            marketplaceItems: [
+                { id: 1, title: 'Template Blog Pro', price: 29.99, image: '📄', seller: 'DesignStudio', rating: 4.8, sales: 234 },
+                { id: 2, title: 'Pack Stickers Premium', price: 9.99, image: '🎨', seller: 'CreativeHub', rating: 4.9, sales: 567 },
+                { id: 3, title: 'Thème Forum Moderne', price: 49.99, image: '🎭', seller: 'ThemeShop', rating: 4.7, sales: 123 }
+            ],
+            aiMessages: [
+                { role: 'assistant', content: 'Bonjour ! Je suis votre assistant IA personnel. Comment puis-je vous aider aujourd\'hui ?' }
+            ],
+            stories: [
+                { id: 1, user: 'Vous', avatar: '', hasStory: false, isYou: true },
+                { id: 2, user: 'Marie D.', avatar: 'https://ui-avatars.com/api/?name=Marie+D', hasStory: true, viewed: false },
+                { id: 3, user: 'Alex M.', avatar: 'https://ui-avatars.com/api/?name=Alex+M', hasStory: true, viewed: true },
+                { id: 4, user: 'Sophie L.', avatar: 'https://ui-avatars.com/api/?name=Sophie+L', hasStory: true, viewed: false }
+            ],
+            activePoll: null,
+            dailyQuota: { posts: 200, used: 15 },
+            notifications: [
+                { id: 1, type: 'like', user: 'Marie D.', content: 'a aimé votre publication', time: '5 min', read: false },
+                { id: 2, type: 'comment', user: 'Jean M.', content: 'a commenté votre article', time: '1 h', read: false },
+                { id: 3, type: 'follow', user: 'Sophie L.', content: 'a commencé à vous suivre', time: '2 h', read: true },
+                { id: 4, type: 'mention', user: 'Pierre R.', content: 'vous a mentionné dans un débat', time: '3 h', read: true }
+            ],
+            messages: [
+                { id: 1, user: 'Alex Martin', avatar: 'https://ui-avatars.com/api/?name=Alex+Martin', lastMessage: 'Salut ! Tu as vu mon dernier article ?', time: '2 min', unread: 2 },
+                { id: 2, user: 'Sophie Dubois', avatar: 'https://ui-avatars.com/api/?name=Sophie+Dubois', lastMessage: 'Merci pour ton aide !', time: '1 h', unread: 0 },
+                { id: 3, user: 'Forum Tech', avatar: 'https://ui-avatars.com/api/?name=Forum+Tech', lastMessage: 'Nouvelle discussion sur l\'IA', time: '3 h', unread: 5 }
+            ],
+            currentChat: null,
+            newMessage: '',
+
+            init() {
+                const savedUser = localStorage.getItem('igrec_user');
+                if (savedUser) {
+                    this.user = JSON.parse(savedUser);
+                    this.showAuth = false;
+                }
+                this.render();
+            },
+
+            renderNotifications() {
+                return `
+                    <div class="fixed top-16 right-4 bg-white rounded-2xl shadow-2xl w-96 max-h-[600px] overflow-hidden z-50 border border-gray-200">
+                        <div class="p-4 border-b border-gray-200 flex items-center justify-between">
+                            <h3 class="font-bold text-lg">Notifications</h3>
+                            <button
+                                onclick="app.showNotifications = false; app.render();"
+                                class="text-gray-500 hover:text-gray-700 text-xl"
+                            >
+                                ✕
+                            </button>
+                        </div>
+
+                        <div class="overflow-y-auto max-h-[520px] divide-y divide-gray-100">
+                            ${this.notifications.map(notif => {
+                                const icons = {
+                                    like: '❤️',
+                                    comment: '💬',
+                                    follow: '👤',
+                                    mention: '@'
+                                };
+                                return `
+                                    <div class="p-4 hover:bg-gray-50 transition-colors ${!notif.read ? 'bg-purple-50' : ''}">
+                                        <div class="flex items-start gap-3">
+                                            <span class="text-2xl">${icons[notif.type]}</span>
+                                            <div class="flex-1">
+                                                <p class="text-sm">
+                                                    <span class="font-semibold">${notif.user}</span>
+                                                    ${notif.content}
+                                                </p>
+                                                <p class="text-xs text-gray-500 mt-1">${notif.time}</p>
+                                            </div>
+                                            ${!notif.read ? `
+                                                <span class="w-2 h-2 bg-purple-600 rounded-full mt-1"></span>
+                                            ` : ''}
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+
+                        <div class="p-3 border-t border-gray-200 text-center">
+                            <button class="text-purple-600 font-semibold text-sm hover:underline">
+                                Tout marquer comme lu
+                            </button>
+                        </div>
+                    </div>
+                `;
+            },
+
+            renderBadges() {
+                return `
+                    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                        <div class="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+                            <div class="border-b border-gray-200 p-6 flex items-center justify-between">
+                                <h2 class="text-2xl font-bold">🏆 Badges & Récompenses</h2>
+                                <button
+                                    onclick="app.showBadges = false; app.render();"
+                                    class="text-gray-500 hover:text-gray-700 text-2xl"
+                                >
+                                    ✕
+                                </button>
+                            </div>
+
+                            <div class="p-6">
+                                <!-- Progression globale -->
+                                <div class="bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl p-6 mb-6">
+                                    <h3 class="text-xl font-bold mb-2">Niveau 12 - Expert</h3>
+                                    <div class="flex items-center gap-4 mb-2">
+                                        <div class="flex-1 bg-white bg-opacity-30 rounded-full h-3">
+                                            <div class="bg-white h-3 rounded-full" style="width: 65%"></div>
+                                        </div>
+                                        <span class="font-semibold">65%</span>
+                                    </div>
+                                    <p class="text-sm opacity-90">350 XP jusqu'au niveau 13</p>
+                                </div>
+
+                                <!-- Badges obtenus -->
+                                <div class="mb-8">
+                                    <h3 class="font-bold text-lg mb-4">Badges obtenus (${this.userBadges.filter(b => b.earned).length})</h3>
+                                    <div class="grid md:grid-cols-3 gap-4">
+                                        ${this.userBadges.filter(b => b.earned).map(badge => `
+                                            <div class="bg-gradient-to-br from-yellow-50 to-orange-50 border-2 border-yellow-300 rounded-xl p-6 text-center hover:scale-105 transition-transform cursor-pointer">
+                                                <div class="text-6xl mb-3">${badge.icon}</div>
+                                                <h4 class="font-bold text-lg mb-1">${badge.name}</h4>
+                                                <p class="text-sm text-gray-600 mb-2">${badge.description}</p>
+                                                <p class="text-xs text-gray-500">Obtenu le ${badge.date}</p>
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                </div>
+
+                                <!-- Badges à débloquer -->
+                                <div>
+                                    <h3 class="font-bold text-lg mb-4">Badges à débloquer</h3>
+                                    <div class="grid md:grid-cols-3 gap-4">
+                                        ${this.userBadges.filter(b => !b.earned).map(badge => `
+                                            <div class="bg-gray-50 border-2 border-gray-200 rounded-xl p-6 text-center relative">
+                                                <div class="text-6xl mb-3 opacity-30">${badge.icon}</div>
+                                                <h4 class="font-bold text-lg mb-1">${badge.name}</h4>
+                                                <p class="text-sm text-gray-600 mb-3">${badge.description}</p>
+                                                <div class="w-full bg-gray-200 rounded-full h-2">
+                                                    <div class="bg-purple-600 h-2 rounded-full" style="width: ${badge.progress}%"></div>
+                                                </div>
+                                                <p class="text-xs text-gray-500 mt-1">${badge.progress}% complété</p>
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                </div>
+
+                                <!-- Récompenses -->
+                                <div class="mt-8 bg-purple-50 border border-purple-200 rounded-xl p-6">
+                                    <h3 class="font-bold text-lg mb-4">🎁 Récompenses disponibles</h3>
+                                    <div class="grid md:grid-cols-2 gap-4">
+                                        ${[
+                                            { title: '1 mois Premium gratuit', cost: 500, icon: '👑' },
+                                            { title: 'Badge personnalisé', cost: 300, icon: '⭐' },
+                                            { title: 'Stickers exclusifs', cost: 150, icon: '🎨' },
+                                            { title: 'Mise en avant 7 jours', cost: 400, icon: '📢' }
+                                        ].map(reward => `
+                                            <div class="bg-white rounded-lg p-4 flex items-center justify-between">
+                                                <div class="flex items-center gap-3">
+                                                    <span class="text-3xl">${reward.icon}</span>
+                                                    <div>
+                                                        <h4 class="font-semibold">${reward.title}</h4>
+                                                        <p class="text-sm text-purple-600 font-semibold">${reward.cost} XP</p>
+                                                    </div>
+                                                </div>
+                                                <button class="bg-purple-600 text-white px-4 py-2 rounded-lg text-sm hover:opacity-90">
+                                                    Échanger
+                                                </button>
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            },
+
+            renderLiveStream() {
+                return `
+                    <div class="fixed inset-0 bg-gray-900 z-50">
+                        <!-- Vidéo principale -->
+                        <div class="relative h-2/3 bg-gradient-to-br from-purple-900 to-pink-900 flex items-center justify-center">
+                            <div class="text-center">
+                                <div class="inline-block relative mb-4">
+                                    <img src="${this.user.avatar}" alt="" class="w-32 h-32 rounded-full border-4 border-white" />
+                                    <span class="absolute -bottom-2 left-1/2 transform -translate-x-1/2 bg-red-600 text-white px-3 py-1 rounded-full text-sm font-semibold animate-pulse">
+                                        🔴 EN DIRECT
+                                    </span>
+                                </div>
+                                <h2 class="text-white text-3xl font-bold mb-2">Votre Live Stream</h2>
+                                <p class="text-white text-lg opacity-90">👥 234 spectateurs</p>
+                            </div>
+
+                            <!-- Badge live -->
+                            <div class="absolute top-4 left-4 bg-red-600 text-white px-4 py-2 rounded-full font-semibold flex items-center gap-2">
+                                <span class="w-2 h-2 bg-white rounded-full animate-pulse"></span>
+                                LIVE
+                            </div>
+
+                            <!-- Stats en direct -->
+                            <div class="absolute top-4 right-4 space-y-2">
+                                <div class="bg-black bg-opacity-50 text-white px-4 py-2 rounded-full backdrop-blur-sm">
+                                    ⏱️ 12:34
+                                </div>
+                                <div class="bg-black bg-opacity-50 text-white px-4 py-2 rounded-full backdrop-blur-sm">
+                                    ❤️ 1.2K
+                                </div>
+                            </div>
+
+                            <!-- Bouton fermer -->
+                            <button
+                                onclick="app.showLiveStream = false; app.render();"
+                                class="absolute top-4 left-1/2 transform -translate-x-1/2 bg-red-600 text-white px-6 py-3 rounded-full font-semibold hover:bg-red-700"
+                            >
+                                Terminer le live
+                            </button>
+                        </div>
+
+                        <!-- Chat et contrôles -->
+                        <div class="h-1/3 bg-gray-800 flex">
+                            <!-- Chat en direct -->
+                            <div class="flex-1 flex flex-col border-r border-gray-700">
+                                <div class="p-4 border-b border-gray-700">
+                                    <h3 class="text-white font-bold">💬 Chat en direct</h3>
+                                </div>
+                                <div class="flex-1 overflow-y-auto p-4 space-y-3">
+                                    ${[
+                                        { user: 'Alex', message: 'Super live ! 🔥', avatar: 'https://ui-avatars.com/api/?name=Alex' },
+                                        { user: 'Marie', message: 'Excellent contenu !', avatar: 'https://ui-avatars.com/api/?name=Marie' },
+                                        { user: 'Sophie', message: '👏👏👏', avatar: 'https://ui-avatars.com/api/?name=Sophie' }
+                                    ].map(msg => `
+                                        <div class="flex items-start gap-2">
+                                            <img src="${msg.avatar}" alt="" class="w-8 h-8 rounded-full" />
+                                            <div>
+                                                <span class="text-purple-400 font-semibold text-sm">${msg.user}</span>
+                                                <p class="text-white text-sm">${msg.message}</p>
+                                            </div>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                                <div class="p-4 border-t border-gray-700">
+                                    <input
+                                        type="text"
+                                        placeholder="Envoyer un message..."
+                                        class="w-full bg-gray-700 text-white px-4 py-2 rounded-full focus:outline-none"
+                                    />
+                                </div>
+                            </div>
+
+                            <!-- Contrôles -->
+                            <div class="w-80 p-6 bg-gray-900">
+                                <h3 class="text-white font-bold mb-4">Contrôles du live</h3>
+                                <div class="space-y-3">
+                                    <button class="w-full flex items-center justify-between bg-gray-800 text-white px-4 py-3 rounded-lg hover:bg-gray-700">
+                                        <span>🎤 Audio</span>
+                                        <span class="text-green-500">ON</span>
+                                    </button>
+                                    <button class="w-full flex items-center justify-between bg-gray-800 text-white px-4 py-3 rounded-lg hover:bg-gray-700">
+                                        <span>📹 Caméra</span>
+                                        <span class="text-green-500">ON</span>
+                                    </button>
+                                    <button class="w-full flex items-center justify-between bg-gray-800 text-white px-4 py-3 rounded-lg hover:bg-gray-700">
+                                        <span>🖥️ Partage d'écran</span>
+                                        <span class="text-gray-500">OFF</span>
+                                    </button>
+                                    <button class="w-full flex items-center justify-between bg-gray-800 text-white px-4 py-3 rounded-lg hover:bg-gray-700">
+                                        <span>💬 Chat</span>
+                                        <span class="text-green-500">ON</span>
+                                    </button>
+                                    <button class="w-full bg-purple-600 text-white px-4 py-3 rounded-lg hover:opacity-90">
+                                        Inviter des spectateurs
+                                    </button>
+                                </div>
+
+                                <!-- Stats -->
+                                <div class="mt-6 bg-gray-800 rounded-lg p-4">
+                                    <h4 class="text-white font-semibold mb-3">Statistiques</h4>
+                                    <div class="space-y-2 text-sm text-gray-300">
+                                        <div class="flex justify-between">
+                                            <span>Spectateurs max</span>
+                                            <span class="font-semibold">234</span>
+                                        </div>
+                                        <div class="flex justify-between">
+                                            <span>J'aime</span>
+                                            <span class="font-semibold">1.2K</span>
+                                        </div>
+                                        <div class="flex justify-between">
+                                            <span>Messages</span>
+                                            <span class="font-semibold">456</span>
+                                        </div>
+                                        <div class="flex justify-between">
+                                            <span>Partages</span>
+                                            <span class="font-semibold">89</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            },
+
+            renderAIAssistant() {
+                return `
+                    <div class="fixed bottom-4 right-4 w-96 bg-white rounded-2xl shadow-2xl z-50 flex flex-col" style="height: 600px">
+                        <!-- Header -->
+                        <div class="bg-gradient-to-r from-purple-600 to-pink-600 text-white p-4 rounded-t-2xl flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 bg-white rounded-full flex items-center justify-center text-2xl">
+                                    🤖
+                                </div>
+                                <div>
+                                    <h3 class="font-bold">Assistant IA</h3>
+                                    <p class="text-xs opacity-90">En ligne</p>
+                                </div>
+                            </div>
+                            <button
+                                onclick="app.showAIAssistant = false; app.render();"
+                                class="hover:opacity-75"
+                            >
+                                <span class="text-2xl">✕</span>
+                            </button>
+                        </div>
+
+                        <!-- Messages -->
+                        <div class="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
+                            ${this.aiMessages.map(msg => `
+                                <div class="flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}">
+                                    <div class="${msg.role === 'user' ? 'bg-purple-600 text-white' : 'bg-white'} rounded-2xl px-4 py-3 max-w-[80%] shadow-sm">
+                                        <p class="text-sm">${msg.content}</p>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+
+                        <!-- Suggestions rapides -->
+                        <div class="p-3 border-t border-gray-200 bg-white">
+                            <div class="flex gap-2 overflow-x-auto pb-2">
+                                ${[
+                                    'Optimiser mon blog',
+                                    'Idées de contenu',
+                                    'Analyser mes stats',
+                                    'Traduire un texte'
+                                ].map(suggestion => `
+                                    <button class="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-xs whitespace-nowrap hover:bg-gray-200 transition-colors">
+                                        ${suggestion}
+                                    </button>
+                                `).join('')}
+                            </div>
+                        </div>
+
+                        <!-- Input -->
+                        <div class="p-4 border-t border-gray-200 bg-white rounded-b-2xl">
+                            <div class="flex items-center gap-2">
+                                <input
+                                    type="text"
+                                    placeholder="Posez votre question..."
+                                    class="flex-1 px-4 py-2 border border-gray-300 rounded-full focus:outline-none focus:border-purple-500"
+                                />
+                                <button class="bg-gradient-to-r from-purple-600 to-pink-600 text-white p-3 rounded-full hover:opacity-90">
+                                    ➤
+                                </button>
+                            </div>
+                            <p class="text-xs text-gray-500 mt-2 text-center">
+                                ⚡ Propulsé par l'IA de dernière génération
+                            </p>
+                        </div>
+                    </div>
+                `;
+            },
+
+            renderStoryViewer() {
+                const currentStory = this.stories.find(s => s.hasStory && !s.isYou);
+                return `
+                    <div class="fixed inset-0 bg-black z-50 flex items-center justify-center">
+                        <div class="relative w-full max-w-md h-full bg-gray-900">
+                            <!-- Progress bars -->
+                            <div class="absolute top-2 left-0 right-0 flex gap-1 px-2 z-10">
+                                ${[1, 2, 3].map((_, i) => `
+                                    <div class="flex-1 h-1 bg-gray-600 rounded-full overflow-hidden">
+                                        <div class="h-full bg-white ${i === 0 ? 'w-full' : 'w-0'} transition-all duration-3000"></div>
+                                    </div>
+                                `).join('')}
+                            </div>
+
+                            <!-- Header -->
+                            <div class="absolute top-6 left-0 right-0 flex items-center justify-between px-4 z-10">
+                                <div class="flex items-center gap-2">
+                                    <img src="${currentStory.avatar}" alt="" class="w-10 h-10 rounded-full border-2 border-white" />
+                                    <div>
+                                        <p class="text-white font-semibold text-sm">${currentStory.user}</p>
+                                        <p class="text-white text-xs opacity-75">Il y a 2h</p>
+                                    </div>
+                                </div>
+                                <button
+                                    onclick="app.showStories = false; app.render();"
+                                    class="text-white text-2xl hover:opacity-75"
+                                >
+                                    ✕
+                                </button>
+                            </div>
+
+                            <!-- Story content -->
+                            <div class="absolute inset-0 bg-gradient-to-br from-purple-600 to-pink-600 flex items-center justify-center">
+                                <div class="text-center text-white p-8">
+                                    <h2 class="text-4xl font-bold mb-4">🎨 Story Demo</h2>
+                                    <p class="text-xl">Nouvelle fonctionnalité disponible !</p>
+                                </div>
+                            </div>
+
+                            <!-- Navigation -->
+                            <div class="absolute inset-0 flex">
+                                <button class="flex-1" onclick="console.log('Prev story')"></button>
+                                <button class="flex-1" onclick="console.log('Next story')"></button>
+                            </div>
+
+                            <!-- Reply input -->
+                            <div class="absolute bottom-0 left-0 right-0 p-4">
+                                <div class="flex items-center gap-2 bg-white bg-opacity-20 backdrop-blur-sm rounded-full px-4 py-3">
+                                    <input
+                                        type="text"
+                                        placeholder="Répondre à ${currentStory.user}..."
+                                        class="flex-1 bg-transparent text-white placeholder-white placeholder-opacity-75 focus:outline-none"
+                                    />
+                                    <button class="text-white text-xl">❤️</button>
+                                    <button class="text-white text-xl">➤</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            },
+
+            renderCreateStory() {
+                return `
+                    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                        <div class="bg-white rounded-2xl max-w-2xl w-full">
+                            <div class="border-b border-gray-200 p-4 flex items-center justify-between">
+                                <h2 class="text-xl font-bold">📸 Créer une Story</h2>
+                                <button
+                                    onclick="app.showCreateStory = false; app.render();"
+                                    class="text-gray-500 hover:text-gray-700 text-2xl"
+                                >
+                                    ✕
+                                </button>
+                            </div>
+
+                            <div class="p-6">
+                                <!-- Options de création -->
+                                <div class="grid grid-cols-3 gap-4 mb-6">
+                                    <button class="border-2 border-gray-200 rounded-xl p-6 hover:border-purple-500 hover:bg-purple-50 transition-all text-center">
+                                        <span class="text-4xl block mb-2">📷</span>
+                                        <p class="font-semibold">Photo</p>
+                                    </button>
+                                    <button class="border-2 border-gray-200 rounded-xl p-6 hover:border-pink-500 hover:bg-pink-50 transition-all text-center">
+                                        <span class="text-4xl block mb-2">🎥</span>
+                                        <p class="font-semibold">Vidéo</p>
+                                    </button>
+                                    <button class="border-2 border-gray-200 rounded-xl p-6 hover:border-blue-500 hover:bg-blue-50 transition-all text-center">
+                                        <span class="text-4xl block mb-2">✍️</span>
+                                        <p class="font-semibold">Texte</p>
+                                    </button>
+                                </div>
+
+                                <!-- Aperçu -->
+                                <div class="bg-gradient-to-br from-purple-600 to-pink-600 rounded-xl aspect-[9/16] max-w-sm mx-auto mb-6 flex items-center justify-center">
+                                    <p class="text-white text-xl">Aperçu de votre story</p>
+                                </div>
+
+                                <!-- Options -->
+                                <div class="space-y-3 mb-6">
+                                    <div class="flex items-center justify-between">
+                                        <span class="font-medium">Ajouter à ma story</span>
+                                        <label class="relative inline-flex items-center cursor-pointer">
+                                            <input type="checkbox" checked class="sr-only peer">
+                                            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+                                        </label>
+                                    </div>
+                                    <div class="flex items-center justify-between">
+                                        <span class="font-medium">Partager dans mon profil</span>
+                                        <label class="relative inline-flex items-center cursor-pointer">
+                                            <input type="checkbox" class="sr-only peer">
+                                            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <!-- Fonctionnalités -->
+                                <div class="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-6">
+                                    <h3 class="font-semibold mb-3">✨ Fonctionnalités Story</h3>
+                                    <div class="grid grid-cols-2 gap-2 text-sm">
+                                        <div>✓ Stickers animés</div>
+                                        <div>✓ Sondages interactifs</div>
+                                        <div>✓ Questions/Réponses</div>
+                                        <div>✓ Filtres IA</div>
+                                        <div>✓ Texte personnalisable</div>
+                                        <div>✓ Musique de fond</div>
+                                    </div>
+                                </div>
+
+                                <!-- Actions -->
+                                <div class="flex gap-3">
+                                    <button class="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3 rounded-lg font-semibold hover:opacity-90">
+                                        Publier la story
+                                    </button>
+                                    <button 
+                                        onclick="app.showCreateStory = false; app.render();"
+                                        class="px-6 py-3 border border-gray-300 rounded-lg hover:bg-gray-50"
+                                    >
+                                        Annuler
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            },
+
+            renderPollCreator() {
+                return `
+                    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                        <div class="bg-white rounded-2xl max-w-2xl w-full">
+                            <div class="border-b border-gray-200 p-4 flex items-center justify-between">
+                                <h2 class="text-xl font-bold">📊 Créer un Sondage</h2>
+                                <button
+                                    onclick="app.showPoll = false; app.render();"
+                                    class="text-gray-500 hover:text-gray-700 text-2xl"
+                                >
+                                    ✕
+                                </button>
+                            </div>
+
+                            <div class="p-6">
+                                <!-- Question -->
+                                <div class="mb-6">
+                                    <label class="block text-sm font-medium mb-2">Question du sondage</label>
+                                    <input
+                                        type="text"
+                                        placeholder="Ex: Quelle est votre fonctionnalité préférée sur I-grec ?"
+                                        class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:border-purple-500"
+                                    />
+                                </div>
+
+                                <!-- Options -->
+                                <div class="mb-6">
+                                    <label class="block text-sm font-medium mb-2">Options de réponse</label>
+                                    <div class="space-y-3">
+                                        ${[1, 2, 3, 4].map(i => `
+                                            <div class="flex gap-2">
+                                                <input
+                                                    type="text"
+                                                    placeholder="Option ${i}"
+                                                    class="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:border-purple-500"
+                                                />
+                                                ${i > 2 ? `
+                                                    <button class="text-red-500 hover:text-red-700 px-3">✕</button>
+                                                ` : ''}
+                                            </div>
+                                        `).join('')}
+                                        <button class="text-purple-600 font-semibold text-sm hover:underline">
+                                            + Ajouter une option
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Paramètres -->
+                                <div class="space-y-4 mb-6">
+                                    <div class="flex items-center justify-between">
+                                        <div>
+                                            <p class="font-medium">Choix multiples</p>
+                                            <p class="text-sm text-gray-600">Autoriser plusieurs réponses</p>
+                                        </div>
+                                        <label class="relative inline-flex items-center cursor-pointer">
+                                            <input type="checkbox" class="sr-only peer">
+                                            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+                                        </label>
+                                    </div>
+
+                                    <div>
+                                        <label class="block text-sm font-medium mb-2">Durée du sondage</label>
+                                        <select class="w-full border border-gray-300 rounded-lg px-4 py-2">
+                                            <option>1 jour</option>
+                                            <option>3 jours</option>
+                                            <option>1 semaine</option>
+                                            <option>2 semaines</option>
+                                            <option>1 mois</option>
+                                            <option>Pas de limite</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <!-- Aperçu -->
+                                <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
+                                    <h3 class="font-semibold mb-3">Aperçu</h3>
+                                    <div class="bg-white rounded-lg p-4 shadow-sm">
+                                        <div class="flex items-center gap-2 mb-3">
+                                            <img src="${this.user.avatar}" alt="" class="w-8 h-8 rounded-full" />
+                                            <span class="font-semibold text-sm">${this.user.displayName}</span>
+                                        </div>
+                                        <p class="font-medium mb-3">Votre question apparaîtra ici</p>
+                                        <div class="space-y-2">
+                                            ${[1, 2].map(i => `
+                                                <button class="w-full text-left px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+                                                    <div class="flex items-center justify-between">
+                                                        <span>Option ${i}</span>
+                                                        <span class="text-sm text-gray-500">0%</span>
+                                                    </div>
+                                                </button>
+                                            `).join('')}
+                                        </div>
+                                        <p class="text-xs text-gray-500 mt-3">0 votes • 1 jour restant</p>
+                                    </div>
+                                </div>
+
+                                <!-- Actions -->
+                                <div class="flex gap-3">
+                                    <button class="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3 rounded-lg font-semibold hover:opacity-90">
+                                        Publier le sondage
+                                    </button>
+                                    <button 
+                                        onclick="app.showPoll = false; app.render();"
+                                        class="px-6 py-3 border border-gray-300 rounded-lg hover:bg-gray-50"
+                                    >
+                                        Annuler
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            },
+
+            renderVideoCall() {
+                const chat = this.messages.find(m => m.id === this.currentChat) || this.messages[0];
+                return `
+                    <div class="fixed inset-0 bg-gray-900 z-50 flex flex-col">
+                        <!-- Video principale -->
+                        <div class="flex-1 relative bg-gradient-to-br from-purple-900 to-pink-900 flex items-center justify-center">
+                            ${this.videoCallActive ? `
+                                <!-- Simulation vidéo du contact -->
+                                <div class="relative w-full h-full flex items-center justify-center">
+                                    <div class="text-center">
+                                        <img src="${chat.avatar}" alt="" class="w-48 h-48 rounded-full mx-auto mb-4 border-4 border-white shadow-2xl" />
+                                        <h2 class="text-white text-3xl font-bold mb-2">${chat.user}</h2>
+                                        <p class="text-white text-lg opacity-90">Appel vidéo en cours...</p>
+                                        <p class="text-white text-sm opacity-75 mt-2">🔴 Enregistrement disponible</p>
+                                    </div>
+                                </div>
+
+                                <!-- Miniature de votre vidéo -->
+                                <div class="absolute top-4 right-4 w-48 h-36 bg-gray-800 rounded-xl overflow-hidden shadow-2xl border-2 border-white">
+                                    <div class="w-full h-full flex items-center justify-center">
+                                        <img src="${this.user.avatar}" alt="" class="w-20 h-20 rounded-full" />
+                                    </div>
+                                    <div class="absolute bottom-2 left-2 text-white text-xs bg-black bg-opacity-50 px-2 py-1 rounded">
+                                        Vous
+                                    </div>
+                                </div>
+                            ` : `
+                                <!-- Appel vocal uniquement -->
+                                <div class="text-center">
+                                    <div class="relative inline-block mb-8">
+                                        <img src="${chat.avatar}" alt="" class="w-48 h-48 rounded-full border-4 border-white shadow-2xl" />
+                                        <div class="absolute -bottom-2 left-1/2 transform -translate-x-1/2 bg-green-500 text-white px-4 py-1 rounded-full text-sm animate-pulse">
+                                            En ligne
+                                        </div>
+                                    </div>
+                                    <h2 class="text-white text-4xl font-bold mb-2">${chat.user}</h2>
+                                    <p class="text-white text-xl opacity-90">Appel vocal en cours...</p>
+                                    <p class="text-white text-lg opacity-75 mt-4">⏱️ 02:34</p>
+                                </div>
+                            `}
+                        </div>
+
+                        <!-- Contrôles de l'appel -->
+                        <div class="bg-gray-800 bg-opacity-95 p-6">
+                            <div class="max-w-2xl mx-auto flex items-center justify-center gap-4">
+                                <button
+                                    onclick="app.micMuted = !app.micMuted; app.render();"
+                                    class="p-4 rounded-full ${this.micMuted ? 'bg-red-600' : 'bg-gray-700'} hover:opacity-80 transition-all"
+                                    title="${this.micMuted ? 'Activer le micro' : 'Couper le micro'}"
+                                >
+                                    <span class="text-2xl">${this.micMuted ? '🔇' : '🎤'}</span>
+                                </button>
+
+                                ${this.videoCallActive ? `
+                                    <button
+                                        onclick="app.cameraOff = !app.cameraOff; app.render();"
+                                        class="p-4 rounded-full ${this.cameraOff ? 'bg-red-600' : 'bg-gray-700'} hover:opacity-80 transition-all"
+                                        title="${this.cameraOff ? 'Activer la caméra' : 'Désactiver la caméra'}"
+                                    >
+                                        <span class="text-2xl">${this.cameraOff ? '📷' : '📹'}</span>
+                                    </button>
+                                ` : ''}
+
+                                <button
+                                    onclick="app.showVideoCall = false; app.videoCallActive = false; app.micMuted = false; app.cameraOff = false; app.render();"
+                                    class="p-6 bg-red-600 rounded-full hover:bg-red-700 transition-all"
+                                    title="Raccrocher"
+                                >
+                                    <span class="text-3xl">📞</span>
+                                </button>
+
+                                <button
+                                    class="p-4 rounded-full bg-gray-700 hover:opacity-80 transition-all"
+                                    title="Partager l'écran"
+                                >
+                                    <span class="text-2xl">🖥️</span>
+                                </button>
+
+                                <button
+                                    class="p-4 rounded-full bg-gray-700 hover:opacity-80 transition-all"
+                                    title="Flouter l'arrière-plan"
+                                >
+                                    <span class="text-2xl">🎨</span>
+                                </button>
+
+                                <button
+                                    class="p-4 rounded-full bg-gray-700 hover:opacity-80 transition-all"
+                                    title="Chat pendant l'appel"
+                                >
+                                    <span class="text-2xl">💬</span>
+                                </button>
+                            </div>
+
+                            <div class="text-center mt-4 text-white text-sm opacity-75">
+                                Qualité HD • Appel crypté de bout en bout • Enregistrement actif
+                            </div>
+                        </div>
+                    </div>
+                `;
+            },
+
+            renderFileUpload() {
+                return `
+                    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                        <div class="bg-white rounded-2xl max-w-2xl w-full">
+                            <div class="border-b border-gray-200 p-4 flex items-center justify-between">
+                                <h2 class="text-xl font-bold">Partager des fichiers</h2>
+                                <button
+                                    onclick="app.showFileUpload = false; app.render();"
+                                    class="text-gray-500 hover:text-gray-700 text-2xl"
+                                >
+                                    ✕
+                                </button>
+                            </div>
+
+                            <div class="p-6">
+                                <!-- Zone de glisser-déposer -->
+                                <div class="border-2 border-dashed border-gray-300 rounded-xl p-12 text-center hover:border-purple-500 transition-colors cursor-pointer bg-gray-50">
+                                    <span class="text-6xl block mb-4">📁</span>
+                                    <h3 class="text-xl font-semibold mb-2">Glissez vos fichiers ici</h3>
+                                    <p class="text-gray-600 mb-4">ou cliquez pour parcourir</p>
+                                    <button class="bg-purple-600 text-white px-6 py-2 rounded-lg hover:opacity-90">
+                                        Parcourir les fichiers
+                                    </button>
+                                </div>
+
+                                <!-- Informations -->
+                                <div class="mt-6 grid grid-cols-2 gap-4">
+                                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                                        <h4 class="font-semibold mb-2 text-blue-900">📦 Taille maximale</h4>
+                                        <p class="text-sm text-blue-700">Jusqu'à 2 Go par fichier</p>
+                                        <p class="text-xs text-blue-600 mt-1">Premium : 10 Go</p>
+                                    </div>
+
+                                    <div class="bg-green-50 border border-green-200 rounded-lg p-4">
+                                        <h4 class="font-semibold mb-2 text-green-900">✅ Formats acceptés</h4>
+                                        <p class="text-sm text-green-700">Images, vidéos, documents</p>
+                                        <p class="text-xs text-green-600 mt-1">PDF, DOCX, MP4, JPG, PNG...</p>
+                                    </div>
+                                </div>
+
+                                <!-- Fichiers récents -->
+                                <div class="mt-6">
+                                    <h3 class="font-semibold mb-3">Fichiers récents</h3>
+                                    <div class="space-y-2">
+                                        ${[
+                                            { name: 'Presentation.pdf', size: '2.4 MB', icon: '📄', date: 'Hier' },
+                                            { name: 'Image_projet.jpg', size: '845 KB', icon: '🖼️', date: 'Il y a 2 jours' },
+                                            { name: 'Vidéo_demo.mp4', size: '124 MB', icon: '🎬', date: 'Il y a 3 jours' }
+                                        ].map(file => `
+                                            <div class="flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg cursor-pointer transition-colors">
+                                                <span class="text-3xl">${file.icon}</span>
+                                                <div class="flex-1">
+                                                    <p class="font-medium">${file.name}</p>
+                                                    <p class="text-sm text-gray-500">${file.size} • ${file.date}</p>
+                                                </div>
+                                                <button class="bg-purple-600 text-white px-4 py-2 rounded-lg text-sm hover:opacity-90">
+                                                    Partager
+                                                </button>
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                </div>
+
+                                <!-- Stockage cloud -->
+                                <div class="mt-6 bg-purple-50 border border-purple-200 rounded-lg p-4">
+                                    <h4 class="font-semibold mb-2">☁️ Stockage Cloud I-grec</h4>
+                                    <div class="flex items-center gap-3 mb-2">
+                                        <div class="flex-1 bg-gray-200 rounded-full h-2">
+                                            <div class="bg-purple-600 h-2 rounded-full" style="width: 35%"></div>
+                                        </div>
+                                        <span class="text-sm font-medium">35%</span>
+                                    </div>
+                                    <p class="text-sm text-gray-600">3.5 Go utilisés sur 10 Go</p>
+                                    <button class="mt-3 text-purple-600 text-sm font-semibold hover:underline">
+                                        Augmenter le stockage →
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            },
+
+            renderTranslator() {
+                const languages = {
+                    'fr': '🇫🇷 Français',
+                    'en': '🇬🇧 English',
+                    'es': '🇪🇸 Español',
+                    'de': '🇩🇪 Deutsch',
+                    'it': '🇮🇹 Italiano',
+                    'pt': '🇵🇹 Português',
+                    'ru': '🇷🇺 Русский',
+                    'zh': '🇨🇳 中文',
+                    'ja': '🇯🇵 日本語',
+                    'ar': '🇸🇦 العربية',
+                    'hi': '🇮🇳 हिन्दी',
+                    'ko': '🇰🇷 한국어'
+                };
+
+                return `
+                    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                        <div class="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+                            <div class="border-b border-gray-200 p-4 flex items-center justify-between">
+                                <h2 class="text-xl font-bold">🌐 Traduction Automatique IA</h2>
+                                <button
+                                    onclick="app.showTranslator = false; app.render();"
+                                    class="text-gray-500 hover:text-gray-700 text-2xl"
+                                >
+                                    ✕
+                                </button>
+                            </div>
+
+                            <div class="p-6">
+                                <!-- Sélection des langues -->
+                                <div class="grid md:grid-cols-2 gap-4 mb-6">
+                                    <div>
+                                        <label class="block text-sm font-medium mb-2">Langue source</label>
+                                        <select class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:border-purple-500">
+                                            <option value="auto">🔍 Détection automatique</option>
+                                            ${Object.entries(languages).map(([code, name]) => `
+                                                <option value="${code}" ${code === 'fr' ? 'selected' : ''}>${name}</option>
+                                            `).join('')}
+                                        </select>
+                                    </div>
+
+                                    <div>
+                                        <label class="block text-sm font-medium mb-2">Langue cible</label>
+                                        <select 
+                                            onchange="app.selectedLanguage = this.value; app.render();"
+                                            class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:border-purple-500"
+                                        >
+                                            ${Object.entries(languages).map(([code, name]) => `
+                                                <option value="${code}" ${code === app.selectedLanguage ? 'selected' : ''}>${name}</option>
+                                            `).join('')}
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <!-- Zone de traduction -->
+                                <div class="grid md:grid-cols-2 gap-4 mb-6">
+                                    <div>
+                                        <label class="block text-sm font-medium mb-2">Texte original</label>
+                                        <textarea
+                                            placeholder="Entrez votre texte ici..."
+                                            class="w-full h-64 border border-gray-300 rounded-lg px-4 py-3 resize-none focus:outline-none focus:border-purple-500"
+                                        ></textarea>
+                                        <div class="mt-2 flex items-center justify-between text-sm text-gray-500">
+                                            <span>0 / 5000 caractères</span>
+                                            <button class="text-purple-600 hover:underline">🎤 Dicter</button>
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <label class="block text-sm font-medium mb-2">Traduction</label>
+                                        <div class="w-full h-64 border border-gray-300 rounded-lg px-4 py-3 bg-gray-50 overflow-y-auto">
+                                            <p class="text-gray-400 italic">La traduction apparaîtra ici...</p>
+                                        </div>
+                                        <div class="mt-2 flex items-center justify-between text-sm">
+                                            <button class="text-purple-600 hover:underline">📋 Copier</button>
+                                            <button class="text-purple-600 hover:underline">🔊 Écouter</button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Fonctionnalités IA -->
+                                <div class="bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-lg p-6 mb-6">
+                                    <h3 class="font-semibold mb-4 flex items-center gap-2">
+                                        <span class="text-2xl">🤖</span>
+                                        Fonctionnalités IA Avancées
+                                    </h3>
+                                    <div class="grid md:grid-cols-2 gap-4">
+                                        <div class="bg-white rounded-lg p-4">
+                                            <h4 class="font-semibold mb-2">📝 Traduction contextuelle</h4>
+                                            <p class="text-sm text-gray-600">L'IA comprend le contexte pour des traductions plus précises</p>
+                                        </div>
+                                        <div class="bg-white rounded-lg p-4">
+                                            <h4 class="font-semibold mb-2">🎯 Ton adaptatif</h4>
+                                            <p class="text-sm text-gray-600">Formel, informel, technique - choisissez le ton</p>
+                                        </div>
+                                        <div class="bg-white rounded-lg p-4">
+                                            <h4 class="font-semibold mb-2">⚡ Traduction en temps réel</h4>
+                                            <p class="text-sm text-gray-600">Traduction instantanée pendant que vous tapez</p>
+                                        </div>
+                                        <div class="bg-white rounded-lg p-4">
+                                            <h4 class="font-semibold mb-2">🌍 Support multilingue</h4>
+                                            <p class="text-sm text-gray-600">Plus de 100 langues et dialectes</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Options de traduction -->
+                                <div class="space-y-3 mb-6">
+                                    <label class="flex items-center gap-3 cursor-pointer">
+                                        <input type="checkbox" checked class="w-5 h-5 text-purple-600 rounded" />
+                                        <span class="text-sm">Activer la traduction automatique dans les messages</span>
+                                    </label>
+                                    <label class="flex items-center gap-3 cursor-pointer">
+                                        <input type="checkbox" class="w-5 h-5 text-purple-600 rounded" />
+                                        <span class="text-sm">Afficher la langue d'origine</span>
+                                    </label>
+                                    <label class="flex items-center gap-3 cursor-pointer">
+                                        <input type="checkbox" checked class="w-5 h-5 text-purple-600 rounded" />
+                                        <span class="text-sm">Suggestions de correction grammaticale</span>
+                                    </label>
+                                </div>
+
+                                <!-- Actions -->
+                                <div class="flex gap-3">
+                                    <button class="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3 rounded-lg font-semibold hover:opacity-90">
+                                        Traduire maintenant
+                                    </button>
+                                    <button class="px-6 py-3 border border-gray-300 rounded-lg hover:bg-gray-50">
+                                        Réinitialiser
+                                    </button>
+                                </div>
+
+                                <!-- Historique des traductions -->
+                                <div class="mt-6">
+                                    <h3 class="font-semibold mb-3">Historique récent</h3>
+                                    <div class="space-y-2">
+                                        ${[
+                                            { from: 'Français', to: 'Anglais', text: 'Bonjour, comment allez-vous ?', time: 'Il y a 5 min' },
+                                            { from: 'Espagnol', to: 'Français', text: 'Hola, ¿cómo estás?', time: 'Il y a 1h' }
+                                        ].map(item => `
+                                            <div class="bg-gray-50 rounded-lg p-3 hover:bg-gray-100 cursor-pointer transition-colors">
+                                                <div class="flex items-center justify-between mb-1">
+                                                    <span class="text-sm font-medium">${item.from} → ${item.to}</span>
+                                                    <span class="text-xs text-gray-500">${item.time}</span>
+                                                </div>
+                                                <p class="text-sm text-gray-700">${item.text}</p>
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            },
+
+            renderPayment() {
+                return `
+                    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                        <div class="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+                            <div class="border-b border-gray-200 p-6 flex items-center justify-between">
+                                <h2 class="text-2xl font-bold">Passer à Premium 👑</h2>
+                                <button
+                                    onclick="app.showPayment = false; app.render();"
+                                    class="text-gray-500 hover:text-gray-700 text-2xl"
+                                >
+                                    ✕
+                                </button>
+                            </div>
+
+                            <div class="p-6">
+                                <!-- Offre spéciale -->
+                                <div class="bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl p-6 mb-6">
+                                    <h3 class="text-2xl font-bold mb-2">🎁 Offre de lancement</h3>
+                                    <p class="text-lg mb-4">Essai gratuit de 1 an + 50% de réduction à vie !</p>
+                                    <p class="text-sm opacity-90">Offre limitée - Plus que 24h</p>
+                                </div>
+
+                                <!-- Plans tarifaires -->
+                                <div class="grid md:grid-cols-3 gap-6 mb-6">
+                                    <!-- Plan Gratuit -->
+                                    <div class="border-2 border-gray-200 rounded-xl p-6">
+                                        <h3 class="text-xl font-bold mb-2">Gratuit</h3>
+                                        <p class="text-3xl font-bold mb-4">0€<span class="text-sm text-gray-500">/mois</span></p>
+                                        <ul class="space-y-3 mb-6">
+                                            <li class="flex items-start gap-2 text-sm">
+                                                <span class="text-green-600">✓</span>
+                                                <span>200 publications/jour</span>
+                                            </li>
+                                            <li class="flex items-start gap-2 text-sm">
+                                                <span class="text-green-600">✓</span>
+                                                <span>3 blogs maximum</span>
+                                            </li>
+                                            <li class="flex items-start gap-2 text-sm">
+                                                <span class="text-green-600">✓</span>
+                                                <span>5 forums maximum</span>
+                                            </li>
+                                            <li class="flex items-start gap-2 text-sm">
+                                                <span class="text-red-600">✗</span>
+                                                <span class="text-gray-400">IA avancée</span>
+                                            </li>
+                                            <li class="flex items-start gap-2 text-sm">
+                                                <span class="text-red-600">✗</span>
+                                                <span class="text-gray-400">Analytics pro</span>
+                                            </li>
+                                        </ul>
+                                        <button class="w-full border border-gray-300 py-3 rounded-lg font-semibold hover:bg-gray-50">
+                                            Plan actuel
+                                        </button>
+                                    </div>
+
+                                    <!-- Plan Premium -->
+                                    <div class="border-2 border-purple-600 rounded-xl p-6 relative bg-purple-50">
+                                        <div class="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-purple-600 text-white px-4 py-1 rounded-full text-sm font-semibold">
+                                            Recommandé
+                                        </div>
+                                        <h3 class="text-xl font-bold mb-2">Premium</h3>
+                                        <p class="text-3xl font-bold mb-1">
+                                            9.99€
+                                            <span class="text-sm text-gray-500 line-through">19.99€</span>
+                                        </p>
+                                        <p class="text-sm text-purple-600 mb-4">-50% à vie</p>
+                                        <ul class="space-y-3 mb-6">
+                                            <li class="flex items-start gap-2 text-sm">
+                                                <span class="text-green-600">✓</span>
+                                                <span class="font-semibold">Publications illimitées</span>
+                                            </li>
+                                            <li class="flex items-start gap-2 text-sm">
+                                                <span class="text-green-600">✓</span>
+                                                <span class="font-semibold">Blogs illimités</span>
+                                            </li>
+                                            <li class="flex items-start gap-2 text-sm">
+                                                <span class="text-green-600">✓</span>
+                                                <span class="font-semibold">Forums illimités</span>
+                                            </li>
+                                            <li class="flex items-start gap-2 text-sm">
+                                                <span class="text-green-600">✓</span>
+                                                <span class="font-semibold">IA avancée</span>
+                                            </li>
+                                            <li class="flex items-start gap-2 text-sm">
+                                                <span class="text-green-600">✓</span>
+                                                <span class="font-semibold">Analytics détaillés</span>
+                                            </li>
+                                            <li class="flex items-start gap-2 text-sm">
+                                                <span class="text-green-600">✓</span>
+                                                <span class="font-semibold">Monétisation</span>
+                                            </li>
+                                            <li class="flex items-start gap-2 text-sm">
+                                                <span class="text-green-600">✓</span>
+                                                <span class="font-semibold">Support prioritaire</span>
+                                            </li>
+                                        </ul>
+                                        <button class="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3 rounded-lg font-semibold hover:opacity-90">
+                                            Commencer l'essai gratuit
+                                        </button>
+                                    </div>
+
+                                    <!-- Plan Business -->
+                                    <div class="border-2 border-gray-200 rounded-xl p-6">
+                                        <h3 class="text-xl font-bold mb-2">Business</h3>
+                                        <p class="text-3xl font-bold mb-4">49.99€<span class="text-sm text-gray-500">/mois</span></p>
+                                        <ul class="space-y-3 mb-6">
+                                            <li class="flex items-start gap-2 text-sm">
+                                                <span class="text-green-600">✓</span>
+                                                <span>Tout Premium +</span>
+                                            </li>
+                                            <li class="flex items-start gap-2 text-sm">
+                                                <span class="text-green-600">✓</span>
+                                                <span class="font-semibold">API complète</span>
+                                            </li>
+                                            <li class="flex items-start gap-2 text-sm">
+                                                <span class="text-green-600">✓</span>
+                                                <span class="font-semibold">White label</span>
+                                            </li>
+                                            <li class="flex items-start gap-2 text-sm">
+                                                <span class="text-green-600">✓</span>
+                                                <span class="font-semibold">Support 24/7</span>
+                                            </li>
+                                            <li class="flex items-start gap-2 text-sm">
+                                                <span class="text-green-600">✓</span>
+                                                <span class="font-semibold">Équipe jusqu'à 50</span>
+                                            </li>
+                                        </ul>
+                                        <button class="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-3 rounded-lg font-semibold hover:opacity-90">
+                                            Nous contacter
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Méthodes de paiement -->
+                                <div class="bg-gray-50 rounded-xl p-6">
+                                    <h3 class="font-bold mb-4">Méthodes de paiement acceptées</h3>
+                                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                        <div class="bg-white rounded-lg p-4 flex items-center justify-center border border-gray-200">
+                                            <span class="text-2xl">💳</span>
+                                            <span class="ml-2 font-semibold">Visa</span>
+                                        </div>
+                                        <div class="bg-white rounded-lg p-4 flex items-center justify-center border border-gray-200">
+                                            <span class="text-2xl">💳</span>
+                                            <span class="ml-2 font-semibold">Mastercard</span>
+                                        </div>
+                                        <div class="bg-white rounded-lg p-4 flex items-center justify-center border border-gray-200">
+                                            <span class="text-2xl">🏦</span>
+                                            <span class="ml-2 font-semibold">Virement</span>
+                                        </div>
+                                        <div class="bg-white rounded-lg p-4 flex items-center justify-center border border-gray-200">
+                                            <span class="text-2xl">📱</span>
+                                            <span class="ml-2 font-semibold">PayPal</span>
+                                        </div>
+                                    </div>
+
+                                    <div class="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                                        <p class="text-sm text-blue-900">
+                                            🔒 <strong>Paiement 100% sécurisé</strong> - Vos données sont cryptées et protégées
+                                        </p>
+                                    </div>
+
+                                    <div class="mt-4 text-center text-xs text-gray-500">
+                                        En continuant, vous acceptez nos conditions d'utilisation et notre politique de remboursement.
+                                        Résiliez à tout moment.
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            },
+
+            handleAuth() {
+                if (this.step === 'phone') {
+                    if (!this.phone || this.phone.length < 10) {
+                        alert('Veuillez entrer un numéro de téléphone valide');
+                        return;
+                    }
+                    this.step = 'code';
+                    alert('Code de vérification envoyé : 123456');
+                } else {
+                    if (this.code !== '123456') {
+                        alert('Code incorrect. Utilisez : 123456');
+                        return;
+                    }
+                    
+                    this.user = {
+                        phone: this.phone,
+                        username: `user_${this.phone.slice(-4)}`,
+                        displayName: `Utilisateur ${this.phone.slice(-4)}`,
+                        avatar: `https://ui-avatars.com/api/?name=${this.phone}&background=667eea`,
+                        isPremium: false
+                    };
+                    
+                    localStorage.setItem('igrec_user', JSON.stringify(this.user));
+                    this.showAuth = false;
+                }
+                this.render();
+            },
+
+            render() {
+                const app = document.getElementById('app');
+                
+                if (this.showAuth) {
+                    app.innerHTML = this.renderAuthScreen();
+                } else {
+                    app.innerHTML = this.renderMainApp();
+                }
+
+                this.attachEventListeners();
+            },
+
+            renderAuthScreen() {
+                return `
+                    <div class="min-h-screen bg-gradient-to-br from-purple-600 via-pink-500 to-orange-400 flex items-center justify-center p-4">
+                        <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full">
+                            <div class="text-center mb-8">
+                                <h1 class="text-4xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent mb-2">
+                                    I-grec
+                                </h1>
+                                <p class="text-gray-600">Réseau social nouvelle génération</p>
+                            </div>
+
+                            ${this.step === 'phone' ? `
+                                <div class="space-y-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                                            Numéro de téléphone
+                                        </label>
+                                        <input
+                                            type="tel"
+                                            id="phone-input"
+                                            value="${this.phone}"
+                                            placeholder="+33 6 12 34 56 78"
+                                            class="w-full border-2 border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:border-purple-500"
+                                        />
+                                    </div>
+                                    
+                                    <button
+                                        onclick="app.handleAuth()"
+                                        class="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3 rounded-lg font-semibold hover:opacity-90 transition-opacity"
+                                    >
+                                        Continuer
+                                    </button>
+                                    
+                                    <p class="text-xs text-gray-500 text-center">
+                                        En continuant, vous acceptez nos conditions d'utilisation
+                                    </p>
+                                </div>
+                            ` : `
+                                <div class="space-y-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                                            Code de vérification
+                                        </label>
+                                        <p class="text-sm text-gray-500 mb-3">
+                                            Envoyé au ${this.phone}
+                                        </p>
+                                        <input
+                                            type="text"
+                                            id="code-input"
+                                            value="${this.code}"
+                                            placeholder="123456"
+                                            maxlength="6"
+                                            class="w-full border-2 border-gray-300 rounded-lg px-4 py-3 text-center text-2xl tracking-widest focus:outline-none focus:border-purple-500"
+                                        />
+                                    </div>
+                                    
+                                    <button
+                                        onclick="app.handleAuth()"
+                                        class="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3 rounded-lg font-semibold hover:opacity-90 transition-opacity"
+                                    >
+                                        Vérifier
+                                    </button>
+                                    
+                                    <button
+                                        onclick="app.step = 'phone'; app.render();"
+                                        class="w-full text-purple-600 text-sm"
+                                    >
+                                        Modifier le numéro
+                                    </button>
+                                </div>
+                            `}
+
+                            <div class="mt-8 pt-8 border-t border-gray-200">
+                                <p class="text-center text-sm text-gray-600 mb-4">
+                                    ✨ Démarrez avec un essai gratuit d'un an
+                                </p>
+                                <div class="grid grid-cols-2 gap-4 text-xs text-gray-500">
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-purple-600">📚</span>
+                                        <span>Blogs illimités</span>
+                                    </div>
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-pink-600">👥</span>
+                                        <span>Forums 500K</span>
+                                    </div>
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-orange-600">🎥</span>
+                                        <span>Philonéiste AI</span>
+                                    </div>
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-blue-600">📊</span>
+                                        <span>Analytics</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            },
+
+            renderMainApp() {
+                return `
+                    <!-- Header -->
+                    <header class="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
+                        <div class="max-w-7xl mx-auto px-4 py-3">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center gap-4">
+                                    <h1 class="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+                                        I-grec
+                                    </h1>
+                                    
+                                    ${!this.user.isPremium ? `
+                                        <div class="bg-gradient-to-r from-purple-100 to-pink-100 px-3 py-1 rounded-full">
+                                            <span class="text-xs font-semibold text-purple-700">
+                                                ${this.dailyQuota.posts - this.dailyQuota.used} publications restantes
+                                            </span>
+                                        </div>
+                                    ` : ''}
+                                </div>
+
+                                <div class="flex-1 max-w-xl mx-4">
+                                    <div class="relative">
+                                        <span class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">🔍</span>
+                                        <input
+                                            type="text"
+                                            placeholder="Rechercher..."
+                                            class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-full focus:outline-none focus:border-purple-500"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div class="flex items-center gap-4">
+                                    <button 
+                                        onclick="app.showBadges = true; app.render();"
+                                        class="relative hover:bg-gray-100 p-2 rounded-full"
+                                        title="Badges et récompenses"
+                                    >
+                                        🏆
+                                        <span class="absolute top-0 right-0 w-2 h-2 bg-yellow-500 rounded-full"></span>
+                                    </button>
+
+                                    <button 
+                                        onclick="app.showLiveStream = true; app.render();"
+                                        class="relative hover:bg-gray-100 p-2 rounded-full"
+                                        title="Live streaming"
+                                    >
+                                        📡
+                                    </button>
+
+                                    <button 
+                                        onclick="app.showAIAssistant = true; app.render();"
+                                        class="relative hover:bg-gray-100 p-2 rounded-full"
+                                        title="Assistant IA"
+                                    >
+                                        🤖
+                                    </button>
+
+                                    <button 
+                                        onclick="app.showNotifications = !app.showNotifications; app.render();"
+                                        class="relative hover:bg-gray-100 p-2 rounded-full"
+                                    >
+                                        🔔
+                                        ${this.notifications.filter(n => !n.read).length > 0 ? `
+                                            <span class="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+                                        ` : ''}
+                                    </button>
+                                    
+                                    <button
+                                        onclick="app.showCreateModal = true; app.render();"
+                                        class="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-4 py-2 rounded-full font-semibold hover:opacity-90 flex items-center gap-2"
+                                    >
+                                        <span>➕</span>
+                                        <span class="hidden md:inline">Créer</span>
+                                    </button>
+
+                                    <button
+                                        onclick="app.showPayment = true; app.render();"
+                                        class="bg-gradient-to-r from-yellow-500 to-orange-500 text-white px-4 py-2 rounded-full font-semibold hover:opacity-90 flex items-center gap-2"
+                                    >
+                                        <span>💳</span>
+                                        <span class="hidden md:inline">Premium</span>
+                                    </button>
+                                    
+                                    <img
+                                        src="${this.user.avatar}"
+                                        alt="${this.user.username}"
+                                        class="w-10 h-10 rounded-full cursor-pointer border-2 border-purple-500"
+                                    />
+                                </div>
+                            </div>
+
+                            <nav class="flex gap-1 mt-4 overflow-x-auto">
+                                ${['home', 'philoneiste', 'academie', 'blogs', 'forums', 'debats', 'messages', 'marketplace', 'analytics'].map(tab => {
+                                    const icons = {
+                                        home: '🏠',
+                                        philoneiste: '🎥',
+                                        academie: '🎓',
+                                        blogs: '📝',
+                                        forums: '👥',
+                                        debats: '💬',
+                                        messages: '✉️',
+                                        marketplace: '🛒',
+                                        analytics: '📊'
+                                    };
+                                    const labels = {
+                                        home: 'Accueil',
+                                        philoneiste: 'Philonéiste',
+                                        academie: 'Académie',
+                                        blogs: 'Blogs',
+                                        forums: 'Forums',
+                                        debats: 'Débats',
+                                        messages: 'Messages',
+                                        marketplace: 'Marketplace',
+                                        analytics: 'Analytics'
+                                    };
+                                    return `
+                                        <button
+                                            onclick="app.activeTab = '${tab}'; app.render();"
+                                            class="flex items-center gap-2 px-4 py-2 rounded-full transition-colors whitespace-nowrap ${
+                                                this.activeTab === tab
+                                                    ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white'
+                                                    : 'hover:bg-gray-100 text-gray-700'
+                                            }"
+                                        >
+                                            <span>${icons[tab]}</span>
+                                            <span class="font-medium">${labels[tab]}</span>
+                                            ${tab === 'messages' && this.messages.filter(m => m.unread > 0).length > 0 ? `
+                                                <span class="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
+                                                    ${this.messages.reduce((sum, m) => sum + m.unread, 0)}
+                                                </span>
+                                            ` : ''}
+                                        </button>
+                                    `;
+                                }).join('')}
+                            </nav>
+                        </div>
+                    </header>
+
+                    <!-- Main Content -->
+                    <main class="py-8 px-4 max-w-7xl mx-auto">
+                        ${this.renderMainContent()}
+                    </main>
+
+                    <!-- Modals -->
+                    ${this.showCreateModal ? this.renderCreateModal() : ''}
+                    ${this.showBlogEditor ? this.renderBlogEditor() : ''}
+                    ${this.showForumCreator ? this.renderForumCreator() : ''}
+                    ${this.showPhiloneisteCreator ? this.renderPhiloneisteCreator() : ''}
+                    ${this.showNotifications ? this.renderNotifications() : ''}
+                    ${this.showPayment ? this.renderPayment() : ''}
+                    ${this.showVideoCall ? this.renderVideoCall() : ''}
+                    ${this.showFileUpload ? this.renderFileUpload() : ''}
+                    ${this.showTranslator ? this.renderTranslator() : ''}
+                    ${this.showStories ? this.renderStoryViewer() : ''}
+                    ${this.showCreateStory ? this.renderCreateStory() : ''}
+                    ${this.showPoll ? this.renderPollCreator() : ''}
+                    ${this.showBadges ? this.renderBadges() : ''}
+                    ${this.showMarketplace ? this.renderMarketplaceModal() : ''}
+                    ${this.showLiveStream ? this.renderLiveStream() : ''}
+                    ${this.showAIAssistant ? this.renderAIAssistant() : ''}
+
+                    <!-- Bottom Navigation Mobile -->
+                    <nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 md:hidden z-40">
+                        <div class="flex justify-around py-2">
+                            ${['home', 'philoneiste', 'blogs', 'forums', 'debats'].map(tab => {
+                                const icons = { home: '🏠', philoneiste: '🎥', blogs: '📝', forums: '👥', debats: '💬' };
+                                return `
+                                    <button
+                                        onclick="app.activeTab = '${tab}'; app.render();"
+                                        class="p-3 rounded-full transition-colors text-2xl ${
+                                            this.activeTab === tab ? 'bg-purple-50' : ''
+                                        }"
+                                    >
+                                        ${icons[tab]}
+                                    </button>
+                                `;
+                            }).join('')}
+                        </div>
+                    </nav>
+
+                    <!-- Premium Banner -->
+                    ${!this.user.isPremium ? `
+                        <div class="fixed bottom-20 right-4 md:bottom-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-2xl shadow-2xl p-5 max-w-sm z-30 animate-bounce">
+                            <div class="flex items-start gap-3">
+                                <span class="text-2xl">👑</span>
+                                <div class="flex-1">
+                                    <h3 class="font-bold text-lg mb-1">Passez à Premium !</h3>
+                                    <p class="text-sm mb-3 opacity-95">
+                                        ✨ Quotas illimités<br/>
+                                        🤖 IA avancée<br/>
+                                        📊 Analytics pro<br/>
+                                        💰 Monétisation
+                                    </p>
+                                    <button class="bg-white text-purple-600 px-5 py-2 rounded-lg text-sm font-bold hover:bg-gray-100 w-full transition-colors">
+                                        🎁 Essayer 1 an GRATUIT
+                                    </button>
+                                </div>
+                                <button class="text-white opacity-70 hover:opacity-100 text-xl">✕</button>
+                            </div>
+                        </div>
+                    ` : ''}
+                `;
+            },
+
+            renderMainContent() {
+                switch(this.activeTab) {
+                    case 'home':
+                        return `
+                            <div class="max-w-2xl mx-auto">
+                                <!-- Stories -->
+                                <div class="bg-white rounded-xl shadow-sm p-4 mb-6 overflow-x-auto">
+                                    <div class="flex gap-4">
+                                        ${this.stories.map(story => `
+                                            <button
+                                                onclick="${story.isYou ? 'app.showCreateStory = true' : 'app.showStories = true'}; app.render();"
+                                                class="flex flex-col items-center gap-2 min-w-[80px] group"
+                                            >
+                                                <div class="relative">
+                                                    <div class="w-16 h-16 rounded-full ${story.hasStory && !story.viewed ? 'bg-gradient-to-tr from-yellow-400 via-pink-500 to-purple-600 p-0.5' : 'bg-gray-300 p-0.5'}">
+                                                        <div class="w-full h-full rounded-full bg-white p-0.5">
+                                                            ${story.isYou ? `
+                                                                <img src="${this.user.avatar}" alt="" class="w-full h-full rounded-full" />
+                                                            ` : `
+                                                                <img src="${story.avatar}" alt="" class="w-full h-full rounded-full ${story.viewed ? 'opacity-60' : ''}" />
+                                                            `}
+                                                        </div>
+                                                    </div>
+                                                    ${story.isYou ? `
+                                                        <div class="absolute bottom-0 right-0 bg-purple-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs">
+                                                            +
+                                                        </div>
+                                                    ` : ''}
+                                                </div>
+                                                <span class="text-xs truncate w-full text-center ${story.viewed ? 'text-gray-400' : 'font-semibold'}">${story.user}</span>
+                                            </button>
+                                        `).join('')}
+                                    </div>
+                                </div>
+
+                                <div class="bg-white rounded-xl shadow-sm p-6 mb-6">
+                                    <div class="flex gap-3">
+                                        <img src="${this.user.avatar}" alt="" class="w-12 h-12 rounded-full" />
+                                        <button
+                                            onclick="app.showCreateModal = true; app.render();"
+                                            class="flex-1 border border-gray-300 rounded-full px-4 py-3 text-left text-gray-500 hover:bg-gray-50"
+                                        >
+                                            Quoi de neuf, ${this.user.displayName} ?
+                                        </button>
+                                    </div>
+                                    <div class="flex gap-3 mt-4 pt-4 border-t border-gray-200">
+                                        <button
+                                            onclick="app.showPoll = true; app.render();"
+                                            class="flex-1 flex items-center justify-center gap-2 py-2 hover:bg-gray-50 rounded-lg transition-colors"
+                                        >
+                                            <span class="text-xl">📊</span>
+                                            <span class="font-medium text-gray-700">Sondage</span>
+                                        </button>
+                                        <button
+                                            onclick="app.showCreateStory = true; app.render();"
+                                            class="flex-1 flex items-center justify-center gap-2 py-2 hover:bg-gray-50 rounded-lg transition-colors"
+                                        >
+                                            <span class="text-xl">📸</span>
+                                            <span class="font-medium text-gray-700">Story</span>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div class="bg-white rounded-xl shadow-sm p-12 text-center">
+                                    <span class="text-6xl mb-4 block">🎥</span>
+                                    <h3 class="text-xl font-semibold mb-2">Bienvenue sur I-grec !</h3>
+                                    <p class="text-gray-600 mb-4">Commencez à suivre des blogs et forums pour voir du contenu</p>
+                                    <div class="flex gap-3 justify-center flex-wrap">
+                                        <button
+                                            onclick="app.activeTab = 'blogs'; app.render();"
+                                            class="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-2 rounded-full"
+                                        >
+                                            Explorer les Blogs
+                                        </button>
+                                        <button
+                                            onclick="app.activeTab = 'forums'; app.render();"
+                                            class="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-2 rounded-full"
+                                        >
+                                            Rejoindre des Forums
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+
+                    case 'philoneiste':
+                        return `
+                            <div class="max-w-md mx-auto">
+                                <div class="bg-white rounded-xl shadow-sm p-6 text-center">
+                                    <span class="text-6xl block mb-4">🎥</span>
+                                    <h2 class="text-2xl font-bold mb-2">Fil Philonéiste</h2>
+                                    <p class="text-gray-600 mb-6">Découvrez des vidéos courtes captivantes (max 1min 5s)</p>
+                                    <button
+                                        onclick="app.showPhiloneisteCreator = true; app.render();"
+                                        class="bg-gradient-to-r from-orange-600 to-pink-600 text-white px-6 py-3 rounded-full font-semibold"
+                                    >
+                                        Créer un Philonéiste
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+
+                    case 'blogs':
+                        return `
+                            <div>
+                                <div class="mb-6 flex justify-between items-center">
+                                    <h2 class="text-2xl font-bold">Blogs I-grec</h2>
+                                    <button
+                                        onclick="app.showBlogEditor = true; app.render();"
+                                        class="bg-gradient-to-r from-pink-600 to-purple-600 text-white px-6 py-2 rounded-full font-semibold"
+                                    >
+                                        Créer un blog
+                                    </button>
+                                </div>
+
+                                <div class="grid md:grid-cols-3 gap-6">
+                                    ${[1,2,3,4,5,6].map(i => `
+                                        <div class="bg-white rounded-xl shadow-sm overflow-hidden hover:shadow-lg transition-shadow cursor-pointer">
+                                            <div class="h-48 bg-gradient-to-br from-purple-400 to-pink-400"></div>
+                                            <div class="p-4">
+                                                <div class="flex items-center gap-2 mb-2">
+                                                    <img src="https://ui-avatars.com/api/?name=Blog${i}" alt="" class="w-8 h-8 rounded-full" />
+                                                    <span class="font-semibold text-sm">Blog Example ${i}</span>
+                                                </div>
+                                                <h3 class="font-bold mb-2">Article captivant sur la technologie</h3>
+                                                <p class="text-sm text-gray-600 mb-3">Découvrez les dernières innovations...</p>
+                                                <div class="flex items-center justify-between text-xs text-gray-500">
+                                                    <span>5 min de lecture</span>
+                                                    <div class="flex gap-3">
+                                                        <span>❤️ 234</span>
+                                                        <span>💬 12</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        `;
+
+                    case 'forums':
+                        return `
+                            <div>
+                                <div class="mb-6 flex justify-between items-center">
+                                    <h2 class="text-2xl font-bold">Forums I-grec</h2>
+                                    <button
+                                        onclick="app.showForumCreator = true; app.render();"
+                                        class="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-2 rounded-full font-semibold"
+                                    >
+                                        Créer un forum
+                                    </button>
+                                </div>
+
+                                <div class="space-y-4">
+                                    ${[
+                                        { name: 'Technologie & Innovation', members: '125K', type: 'public', icon: '💻' },
+                                        { name: 'Arts & Culture', members: '89K', type: 'public', icon: '🎨' },
+                                        { name: 'Entrepreneuriat', members: '234K', type: 'private', icon: '🚀' },
+                                        { name: 'Sciences & Recherche', members: '67K', type: 'public', icon: '🔬' }
+                                    ].map(forum => `
+                                        <div class="bg-white rounded-xl shadow-sm p-6 hover:shadow-lg transition-shadow cursor-pointer">
+                                            <div class="flex items-start gap-4">
+                                                <div class="text-4xl">${forum.icon}</div>
+                                                <div class="flex-1">
+                                                    <div class="flex items-center gap-2 mb-1">
+                                                        <h3 class="text-xl font-bold">${forum.name}</h3>
+                                                        <span>${forum.type === 'public' ? '🌍' : '🔒'}</span>
+                                                    </div>
+                                                    <p class="text-sm text-gray-600 mb-3">
+                                                        Une communauté active pour partager et discuter
+                                                    </p>
+                                                    <div class="flex items-center gap-4 text-sm text-gray-500">
+                                                        <span>👥 ${forum.members} membres</span>
+                                                        <span>📝 2.3K publications</span>
+                                                        <span>🟢 456 en ligne</span>
+                                                    </div>
+                                                </div>
+                                                <button class="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-2 rounded-full font-semibold hover:opacity-90">
+                                                    Rejoindre
+                                                </button>
+                                            </div>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        `;
+
+                    case 'debats':
+                        return `
+                            <div>
+                                <div class="mb-6">
+                                    <h2 class="text-2xl font-bold mb-4">Espace Débats</h2>
+                                    <div class="flex gap-4">
+                                        <button
+                                            onclick="app.activeSubTab = 'bete-pro'; app.render();"
+                                            class="px-6 py-3 rounded-lg font-semibold transition-colors ${
+                                                this.activeSubTab === 'bete-pro'
+                                                    ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white'
+                                                    : 'bg-white text-gray-700 hover:bg-gray-50'
+                                            }"
+                                        >
+                                            🦁 Bête I-grec Pro
+                                        </button>
+                                        <button
+                                            onclick="app.activeSubTab = 'cercle-plus'; app.render();"
+                                            class="px-6 py-3 rounded-lg font-semibold transition-colors ${
+                                                this.activeSubTab === 'cercle-plus'
+                                                    ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white'
+                                                    : 'bg-white text-gray-700 hover:bg-gray-50'
+                                            }"
+                                        >
+                                            ⭕ Cercle Plus
+                                        </button>
+                                    </div>
+                                </div>
+
+                                ${this.activeSubTab === 'bete-pro' ? `
+                                    <div class="space-y-4">
+                                        ${[
+                                            { title: 'L\'IA va-t-elle remplacer les développeurs ?', votes: 234, comments: 89, subreddit: 'Technologie' },
+                                            { title: 'Meilleurs frameworks web en 2025', votes: 567, comments: 123, subreddit: 'Développement' }
+                                        ].map(debate => `
+                                            <div class="bg-white rounded-xl shadow-sm p-6">
+                                                <div class="flex gap-4">
+                                                    <div class="flex flex-col items-center gap-2">
+                                                        <button class="text-gray-400 hover:text-purple-600 text-xl">▲</button>
+                                                        <span class="font-bold text-lg">${debate.votes}</span>
+                                                        <button class="text-gray-400 hover:text-purple-600 text-xl">▼</button>
+                                                    </div>
+                                                    <div class="flex-1">
+                                                        <div class="flex items-center gap-2 mb-2">
+                                                            <span class="bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-xs font-semibold">
+                                                                r/${debate.subreddit}
+                                                            </span>
+                                                            <span class="text-xs text-gray-500">Posté il y a 3h</span>
+                                                        </div>
+                                                        <h3 class="text-xl font-bold mb-3 hover:text-purple-600 cursor-pointer">
+                                                            ${debate.title}
+                                                        </h3>
+                                                        <div class="flex items-center gap-4 text-sm text-gray-500">
+                                                            <button class="hover:text-purple-600">💬 ${debate.comments}</button>
+                                                            <button class="hover:text-purple-600">🔗 Partager</button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                ` : `
+                                    <div class="space-y-4">
+                                        ${[
+                                            { author: 'Marie Dupont', content: 'Quelles sont vos meilleures astuces productivité ?', likes: 45, comments: 23 },
+                                            { author: 'Jean Martin', content: 'Discussion : L\'avenir du télétravail', likes: 78, comments: 34 }
+                                        ].map(topic => `
+                                            <div class="bg-white rounded-xl shadow-sm p-6">
+                                                <div class="flex items-center gap-3 mb-4">
+                                                    <img src="https://ui-avatars.com/api/?name=${topic.author}" alt="" class="w-12 h-12 rounded-full" />
+                                                    <div>
+                                                        <p class="font-semibold">${topic.author}</p>
+                                                        <p class="text-xs text-gray-500">Il y a 2h</p>
+                                                    </div>
+                                                </div>
+                                                <p class="text-lg mb-4">${topic.content}</p>
+                                                <div class="flex items-center gap-4 text-sm text-gray-500">
+                                                    <button class="hover:text-red-600">❤️ ${topic.likes}</button>
+                                                    <button class="hover:text-blue-600">💬 ${topic.comments}</button>
+                                                    <button class="hover:text-green-600">🔗 Partager</button>
+                                                </div>
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                `}
+                            </div>
+                        `;
+
+                    case 'academie':
+                        return `
+                            <div>
+                                <div class="mb-6">
+                                    <h2 class="text-2xl font-bold mb-2">🎓 Académie Philonéiste</h2>
+                                    <p class="text-gray-600">Cours en ligne des comptes que vous suivez</p>
+                                </div>
+
+                                <div class="grid md:grid-cols-3 gap-6">
+                                    ${[
+                                        { title: 'Introduction à l\'IA', author: 'Prof. Tech', duration: '2:30' },
+                                        { title: 'Design UI/UX', author: 'Design Master', duration: '1:45' },
+                                        { title: 'Marketing 2025', author: 'Expert', duration: '3:15' }
+                                    ].map(course => `
+                                        <div class="bg-white rounded-xl shadow-sm overflow-hidden">
+                                            <div class="h-48 bg-gradient-to-br from-blue-400 to-purple-400 flex items-center justify-center">
+                                                <span class="text-6xl">▶️</span>
+                                            </div>
+                                            <div class="p-4">
+                                                <h3 class="font-bold mb-2">${course.title}</h3>
+                                                <p class="text-sm text-gray-600 mb-3">Par ${course.author} • ${course.duration}</p>
+                                                <button class="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-2 rounded-lg font-semibold">
+                                                    Commencer
+                                                </button>
+                                            </div>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        `;
+
+                    case 'messages':
+                        return `
+                            <div class="max-w-6xl mx-auto">
+                                <div class="bg-white rounded-xl shadow-sm overflow-hidden" style="height: calc(100vh - 250px);">
+                                    <div class="flex h-full">
+                                        <!-- Liste des conversations -->
+                                        <div class="w-1/3 border-r border-gray-200 overflow-y-auto">
+                                            <div class="p-4 border-b border-gray-200">
+                                                <h2 class="text-xl font-bold">Messages</h2>
+                                                <input
+                                                    type="text"
+                                                    placeholder="Rechercher une conversation..."
+                                                    class="w-full mt-3 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-purple-500"
+                                                />
+                                            </div>
+                                            
+                                            <div class="divide-y divide-gray-200">
+                                                ${this.messages.map(msg => `
+                                                    <button
+                                                        onclick="app.currentChat = ${msg.id}; app.render();"
+                                                        class="w-full p-4 hover:bg-gray-50 transition-colors text-left ${this.currentChat === msg.id ? 'bg-purple-50' : ''}"
+                                                    >
+                                                        <div class="flex items-center gap-3">
+                                                            <div class="relative">
+                                                                <img src="${msg.avatar}" alt="" class="w-12 h-12 rounded-full" />
+                                                                <span class="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></span>
+                                                            </div>
+                                                            <div class="flex-1 min-w-0">
+                                                                <div class="flex items-center justify-between mb-1">
+                                                                    <h3 class="font-semibold truncate">${msg.user}</h3>
+                                                                    <span class="text-xs text-gray-500">${msg.time}</span>
+                                                                </div>
+                                                                <p class="text-sm text-gray-600 truncate">${msg.lastMessage}</p>
+                                                            </div>
+                                                            ${msg.unread > 0 ? `
+                                                                <span class="bg-purple-600 text-white text-xs px-2 py-1 rounded-full">
+                                                                    ${msg.unread}
+                                                                </span>
+                                                            ` : ''}
+                                                        </div>
+                                                    </button>
+                                                `).join('')}
+                                            </div>
+                                        </div>
+
+                                        <!-- Zone de chat -->
+                                        <div class="flex-1 flex flex-col">
+                                            ${this.currentChat ? `
+                                                ${(() => {
+                                                    const chat = this.messages.find(m => m.id === this.currentChat);
+                                                    return `
+                                                        <!-- Header du chat -->
+                                                        <div class="p-4 border-b border-gray-200 flex items-center justify-between">
+                                                            <div class="flex items-center gap-3">
+                                                                <img src="${chat.avatar}" alt="" class="w-10 h-10 rounded-full" />
+                                                                <div>
+                                                                    <h3 class="font-semibold">${chat.user}</h3>
+                                                                    <p class="text-xs text-green-600">● En ligne</p>
+                                                                </div>
+                                                            </div>
+                                                            <div class="flex items-center gap-2">
+                                                                <button 
+                                                                    onclick="app.showVideoCall = true; app.render();"
+                                                                    class="p-2 hover:bg-gray-100 rounded-full" 
+                                                                    title="Appel vocal"
+                                                                >📞</button>
+                                                                <button 
+                                                                    onclick="app.showVideoCall = true; app.videoCallActive = true; app.render();"
+                                                                    class="p-2 hover:bg-gray-100 rounded-full" 
+                                                                    title="Appel vidéo"
+                                                                >📹</button>
+                                                                <button 
+                                                                    onclick="app.showTranslator = true; app.render();"
+                                                                    class="p-2 hover:bg-gray-100 rounded-full" 
+                                                                    title="Traduction automatique"
+                                                                >🌐</button>
+                                                                <button class="p-2 hover:bg-gray-100 rounded-full" title="Plus d'options">⋯</button>
+                                                            </div>
+                                                        </div>
+
+                                                        <!-- Messages -->
+                                                        <div class="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
+                                                            <div class="flex justify-start">
+                                                                <div class="bg-white rounded-2xl rounded-tl-none px-4 py-2 max-w-sm shadow-sm">
+                                                                    <p class="text-sm">${chat.lastMessage}</p>
+                                                                    <p class="text-xs text-gray-500 mt-1">${chat.time}</p>
+                                                                </div>
+                                                            </div>
+                                                            <div class="flex justify-end">
+                                                                <div class="bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-2xl rounded-tr-none px-4 py-2 max-w-sm">
+                                                                    <p class="text-sm">Super, j'ai hâte de lire ça ! 😊</p>
+                                                                    <p class="text-xs opacity-75 mt-1">À l'instant</p>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        <!-- Input de message -->
+                                                        <div class="p-4 border-t border-gray-200 bg-white">
+                                                            <div class="flex items-center gap-3">
+                                                                <button 
+                                                                    onclick="app.showFileUpload = true; app.render();"
+                                                                    class="text-2xl hover:scale-110 transition-transform" 
+                                                                    title="Joindre un fichier"
+                                                                >📎</button>
+                                                                <button 
+                                                                    onclick="app.showFileUpload = true; app.render();"
+                                                                    class="text-2xl hover:scale-110 transition-transform"
+                                                                    title="Envoyer une photo"
+                                                                >📷</button>
+                                                                <button class="text-2xl hover:scale-110 transition-transform" title="Message vocal">🎤</button>
+                                                                <button 
+                                                                    onclick="app.showTranslator = true; app.render();"
+                                                                    class="text-2xl hover:scale-110 transition-transform"
+                                                                    title="Traduire le message"
+                                                                >🌐</button>
+                                                                <input
+                                                                    type="text"
+                                                                    placeholder="Écrivez un message..."
+                                                                    class="flex-1 px-4 py-2 border border-gray-300 rounded-full focus:outline-none focus:border-purple-500"
+                                                                />
+                                                                <button class="bg-gradient-to-r from-purple-600 to-pink-600 text-white p-3 rounded-full hover:opacity-90">
+                                                                    ➤
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    `;
+                                                })()}
+                                            ` : `
+                                                <div class="flex-1 flex items-center justify-center text-gray-400">
+                                                    <div class="text-center">
+                                                        <span class="text-6xl block mb-4">💬</span>
+                                                        <p class="text-xl font-semibold mb-2">Vos messages</p>
+                                                        <p>Sélectionnez une conversation pour commencer</p>
+                                                    </div>
+                                                </div>
+                                            `}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+
+                    case 'marketplace':
+                        return `
+                            <div class="max-w-7xl mx-auto">
+                                <div class="mb-6 flex justify-between items-center">
+                                    <div>
+                                        <h2 class="text-2xl font-bold mb-2">🛒 Marketplace I-grec</h2>
+                                        <p class="text-gray-600">Achetez et vendez des templates, thèmes et services</p>
+                                    </div>
+                                    <button class="bg-gradient-to-r from-green-600 to-emerald-600 text-white px-6 py-2 rounded-full font-semibold hover:opacity-90">
+                                        Vendre un produit
+                                    </button>
+                                </div>
+
+                                <!-- Catégories -->
+                                <div class="bg-white rounded-xl shadow-sm p-4 mb-6 overflow-x-auto">
+                                    <div class="flex gap-3">
+                                        ${['Tous', 'Templates', 'Thèmes', 'Stickers', 'Services', 'Formations'].map(cat => `
+                                            <button class="px-4 py-2 ${cat === 'Tous' ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-700'} rounded-full font-medium whitespace-nowrap hover:opacity-80 transition-opacity">
+                                                ${cat}
+                                            </button>
+                                        `).join('')}
+                                    </div>
+                                </div>
+
+                                <!-- Produits -->
+                                <div class="grid md:grid-cols-3 gap-6">
+                                    ${this.marketplaceItems.map(item => `
+                                        <div class="bg-white rounded-xl shadow-sm overflow-hidden hover:shadow-lg transition-shadow">
+                                            <div class="h-48 bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center">
+                                                <span class="text-6xl">${item.image}</span>
+                                            </div>
+                                            <div class="p-4">
+                                                <h3 class="font-bold mb-2">${item.title}</h3>
+                                                <div class="flex items-center gap-2 mb-3">
+                                                    <span class="text-sm text-gray-600">Par ${item.seller}</span>
+                                                    <span class="text-sm">⭐ ${item.rating}</span>
+                                                </div>
+                                                <div class="flex items-center justify-between">
+                                                    <span class="text-2xl font-bold text-purple-600">${item.price}€</span>
+                                                    <button class="bg-purple-600 text-white px-4 py-2 rounded-lg font-semibold hover:opacity-90">
+                                                        Acheter
+                                                    </button>
+                                                </div>
+                                                <p class="text-xs text-gray-500 mt-2">${item.sales} ventes</p>
+                                            </div>
+                                        </div>
+                                    `).join('')}
+                                </div>
+
+                                <!-- Vendez vos créations -->
+                                <div class="mt-8 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-8 text-center">
+                                    <h3 class="text-2xl font-bold mb-4">💰 Devenez vendeur sur I-grec</h3>
+                                    <p class="text-gray-700 mb-6">Vendez vos créations et générez des revenus passifs</p>
+                                    <div class="grid md:grid-cols-3 gap-4 mb-6">
+                                        <div class="bg-white rounded-lg p-4">
+                                            <span class="text-3xl block mb-2">🎨</span>
+                                            <h4 class="font-semibold mb-1">Créez</h4>
+                                            <p class="text-sm text-gray-600">Templates, thèmes, services</p>
+                                        </div>
+                                        <div class="bg-white rounded-lg p-4">
+                                            <span class="text-3xl block mb-2">🛍️</span>
+                                            <h4 class="font-semibold mb-1">Vendez</h4>
+                                            <p class="text-sm text-gray-600">Sur notre marketplace</p>
+                                        </div>
+                                        <div class="bg-white rounded-lg p-4">
+                                            <span class="text-3xl block mb-2">💵</span>
+                                            <h4 class="font-semibold mb-1">Gagnez</h4>
+                                            <p class="text-sm text-gray-600">85% de commission</p>
+                                        </div>
+                                    </div>
+                                    <button class="bg-gradient-to-r from-green-600 to-emerald-600 text-white px-8 py-3 rounded-full font-semibold hover:opacity-90">
+                                        Commencer à vendre
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+
+                    case 'analytics':
+                        return `
+                            <div class="max-w-7xl mx-auto">
+                                <div class="mb-6">
+                                    <h2 class="text-2xl font-bold mb-2">📊 Analytics & Statistiques</h2>
+                                    <p class="text-gray-600">Analyse détaillée de vos performances avec IA</p>
+                                </div>
+
+                                <!-- Statistiques principales -->
+                                <div class="grid md:grid-cols-4 gap-6 mb-6">
+                                    ${[
+                                        { label: 'Vues totales', value: '45.2K', change: '+12%', icon: '👁️', color: 'blue' },
+                                        { label: 'Engagement', value: '8.7K', change: '+23%', icon: '❤️', color: 'red' },
+                                        { label: 'Abonnés', value: '2.3K', change: '+5%', icon: '👥', color: 'purple' },
+                                        { label: 'Revenus', value: '1,234€', change: '+18%', icon: '💰', color: 'green' }
+                                    ].map(stat => `
+                                        <div class="bg-white rounded-xl shadow-sm p-6">
+                                            <div class="flex items-center justify-between mb-2">
+                                                <span class="text-3xl">${stat.icon}</span>
+                                                <span class="text-sm font-semibold ${stat.change.startsWith('+') ? 'text-green-600' : 'text-red-600'}">
+                                                    ${stat.change}
+                                                </span>
+                                            </div>
+                                            <p class="text-3xl font-bold mb-1">${stat.value}</p>
+                                            <p class="text-sm text-gray-600">${stat.label}</p>
+                                        </div>
+                                    `).join('')}
+                                </div>
+
+                                <!-- Graphiques -->
+                                <div class="grid md:grid-cols-2 gap-6 mb-6">
+                                    <div class="bg-white rounded-xl shadow-sm p-6">
+                                        <h3 class="font-bold mb-4">📈 Évolution des vues (7 derniers jours)</h3>
+                                        <div class="h-64 flex items-end gap-2">
+                                            ${[40, 65, 45, 80, 60, 95, 75].map((height, i) => `
+                                                <div class="flex-1 bg-gradient-to-t from-purple-600 to-pink-600 rounded-t hover:opacity-80 transition-opacity cursor-pointer" 
+                                                     style="height: ${height}%"
+                                                     title="${['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'][i]}: ${Math.round(height * 100)} vues">
+                                                </div>
+                                            `).join('')}
+                                        </div>
+                                        <div class="flex justify-between mt-2 text-xs text-gray-500">
+                                            ${['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'].map(day => `<span>${day}</span>`).join('')}
+                                        </div>
+                                    </div>
+
+                                    <div class="bg-white rounded-xl shadow-sm p-6">
+                                        <h3 class="font-bold mb-4">🎯 Répartition du contenu</h3>
+                                        <div class="flex items-center justify-center h-64">
+                                            <div class="text-center">
+                                                <svg class="w-48 h-48 mx-auto" viewBox="0 0 100 100">
+                                                    <circle cx="50" cy="50" r="40" fill="none" stroke="#e5e7eb" stroke-width="20"/>
+                                                    <circle cx="50" cy="50" r="40" fill="none" stroke="#9333ea" stroke-width="20" 
+                                                            stroke-dasharray="75 251" transform="rotate(-90 50 50)"/>
+                                                    <circle cx="50" cy="50" r="40" fill="none" stroke="#ec4899" stroke-width="20" 
+                                                            stroke-dasharray="50 251" stroke-dashoffset="-75" transform="rotate(-90 50 50)"/>
+                                                    <circle cx="50" cy="50" r="40" fill="none" stroke="#f59e0b" stroke-width="20" 
+                                                            stroke-dasharray="126 251" stroke-dashoffset="-125" transform="rotate(-90 50 50)"/>
+                                                </svg>
+                                                <div class="mt-4 space-y-2">
+                                                    <div class="flex items-center justify-center gap-2">
+                                                        <span class="w-3 h-3 rounded-full bg-purple-600"></span>
+                                                        <span class="text-sm">Blogs 30%</span>
+                                                    </div>
+                                                    <div class="flex items-center justify-center gap-2">
+                                                        <span class="w-3 h-3 rounded-full bg-pink-600"></span>
+                                                        <span class="text-sm">Philonéiste 20%</span>
+                                                    </div>
+                                                    <div class="flex items-center justify-center gap-2">
+                                                        <span class="w-3 h-3 rounded-full bg-orange-600"></span>
+                                                        <span class="text-sm">Forums 50%</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Analyse IA -->
+                                <div class="bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-xl p-6 mb-6">
+                                    <h3 class="font-bold mb-4 flex items-center gap-2">
+                                        <span class="text-2xl">🤖</span>
+                                        Recommandations IA
+                                    </h3>
+                                    <div class="grid md:grid-cols-3 gap-4">
+                                        ${[
+                                            { title: 'Meilleur moment pour publier', text: 'Les mercredis à 14h génèrent +45% d\'engagement', icon: '⏰' },
+                                            { title: 'Contenu recommandé', text: 'Vos tutoriels tech ont 3x plus de vues', icon: '💡' },
+                                            { title: 'Opportunité de croissance', text: 'Créez plus de Philonéiste pour +200% de portée', icon: '🚀' }
+                                        ].map(rec => `
+                                            <div class="bg-white rounded-lg p-4">
+                                                <div class="text-2xl mb-2">${rec.icon}</div>
+                                                <h4 class="font-semibold mb-1 text-sm">${rec.title}</h4>
+                                                <p class="text-xs text-gray-600">${rec.text}</p>
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                </div>
+
+                                <!-- Top contenu -->
+                                <div class="bg-white rounded-xl shadow-sm p-6">
+                                    <h3 class="font-bold mb-4">🏆 Votre meilleur contenu</h3>
+                                    <div class="space-y-4">
+                                        ${[
+                                            { title: 'Introduction à l\'IA moderne', type: 'Blog', views: '12.3K', engagement: '89%', trend: 'up' },
+                                            { title: 'Astuces productivité 2025', type: 'Philonéiste', views: '8.7K', engagement: '92%', trend: 'up' },
+                                            { title: 'Discussion: Future du dev', type: 'Forum', views: '5.2K', engagement: '76%', trend: 'down' }
+                                        ].map((content, i) => `
+                                            <div class="flex items-center gap-4 p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                                                <span class="text-2xl font-bold text-gray-400">#${i + 1}</span>
+                                                <div class="flex-1">
+                                                    <h4 class="font-semibold mb-1">${content.title}</h4>
+                                                    <div class="flex items-center gap-4 text-sm text-gray-600">
+                                                        <span>📝 ${content.type}</span>
+                                                        <span>👁️ ${content.views} vues</span>
+                                                        <span>❤️ ${content.engagement} engagement</span>
+                                                    </div>
+                                                </div>
+                                                <span class="text-2xl">${content.trend === 'up' ? '📈' : '📉'}</span>
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+
+                    default:
+                        return '<div class="text-center text-gray-500">Contenu en cours de développement...</div>';
+                }
+            },
+
+            renderCreateModal() {
+                return `
+                    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                        <div class="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                            <div class="border-b border-gray-200 p-4 flex items-center justify-between">
+                                <h2 class="text-xl font-bold">Créer du contenu</h2>
+                                <button
+                                    onclick="app.showCreateModal = false; app.render();"
+                                    class="text-gray-500 hover:text-gray-700 text-2xl"
+                                >
+                                    ×
+                                </button>
+                            </div>
+
+                            <div class="p-6 grid grid-cols-2 gap-4">
+                                <button class="border-2 border-gray-200 rounded-xl p-6 hover:border-purple-500 hover:bg-purple-50 transition-all">
+                                    <span class="text-4xl block mb-3">📝</span>
+                                    <h3 class="font-semibold mb-2">Publication</h3>
+                                    <p class="text-sm text-gray-600">Partagez vos idées</p>
+                                </button>
+
+                                <button
+                                    onclick="app.showCreateModal = false; app.showBlogEditor = true; app.render();"
+                                    class="border-2 border-gray-200 rounded-xl p-6 hover:border-pink-500 hover:bg-pink-50 transition-all"
+                                >
+                                    <span class="text-4xl block mb-3">📚</span>
+                                    <h3 class="font-semibold mb-2">Blog / Article</h3>
+                                    <p class="text-sm text-gray-600">Article de fond</p>
+                                </button>
+
+                                <button
+                                    onclick="app.showCreateModal = false; app.showPhiloneisteCreator = true; app.render();"
+                                    class="border-2 border-gray-200 rounded-xl p-6 hover:border-orange-500 hover:bg-orange-50 transition-all"
+                                >
+                                    <span class="text-4xl block mb-3">🎥</span>
+                                    <h3 class="font-semibold mb-2">Philonéiste</h3>
+                                    <p class="text-sm text-gray-600">Vidéo 1min 5s</p>
+                                </button>
+
+                                <button
+                                    onclick="app.showCreateModal = false; app.showForumCreator = true; app.render();"
+                                    class="border-2 border-gray-200 rounded-xl p-6 hover:border-blue-500 hover:bg-blue-50 transition-all"
+                                >
+                                    <span class="text-4xl block mb-3">👥</span>
+                                    <h3 class="font-semibold mb-2">Forum</h3>
+                                    <p class="text-sm text-gray-600">Jusqu'à 500K</p>
+                                </button>
+                            </div>
+
+                            <div class="border-t border-gray-200 p-4 bg-gradient-to-r from-purple-50 to-pink-50">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <p class="font-semibold text-sm">Passez à Premium</p>
+                                        <p class="text-xs text-gray-600">Quotas illimités et IA avancée</p>
+                                    </div>
+                                    <button class="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-4 py-2 rounded-full text-sm font-semibold">
+                                        Découvrir
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            },
+
+            renderBlogEditor() {
+                return `
+                    <div class="fixed inset-0 bg-white z-50 overflow-y-auto">
+                        <div class="border-b border-gray-200 p-4 flex justify-between sticky top-0 bg-white">
+                            <button
+                                onclick="app.showBlogEditor = false; app.render();"
+                                class="text-gray-600 hover:text-gray-900"
+                            >
+                                ← Retour
+                            </button>
+                            <div class="flex gap-3">
+                                <button class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+                                    Aperçu
+                                </button>
+                                <button class="px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:opacity-90">
+                                    Publier
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="max-w-4xl mx-auto p-8">
+                            <input
+                                type="text"
+                                placeholder="Titre de votre article..."
+                                class="w-full text-4xl font-bold mb-4 focus:outline-none border-b-2 border-transparent focus:border-purple-500 pb-2"
+                            />
+                            
+                            <div class="flex gap-4 mb-6">
+                                <select class="border border-gray-300 rounded-lg px-3 py-2">
+                                    <option>Catégorie</option>
+                                    <option>Technologie</option>
+                                    <option>Culture</option>
+                                    <option>Société</option>
+                                    <option>Science</option>
+                                </select>
+                                
+                                <input
+                                    type="text"
+                                    placeholder="Tags (séparés par des virgules)"
+                                    class="flex-1 border border-gray-300 rounded-lg px-3 py-2"
+                                />
+                            </div>
+
+                            <div class="border border-gray-300 rounded-lg p-4 mb-4 flex gap-2 flex-wrap">
+                                <button class="px-3 py-2 hover:bg-gray-100 rounded font-bold">B</button>
+                                <button class="px-3 py-2 hover:bg-gray-100 rounded italic">I</button>
+                                <button class="px-3 py-2 hover:bg-gray-100 rounded underline">U</button>
+                                <button class="px-3 py-2 hover:bg-gray-100 rounded">H1</button>
+                                <button class="px-3 py-2 hover:bg-gray-100 rounded">H2</button>
+                                <button class="px-3 py-2 hover:bg-gray-100 rounded">🔗 Link</button>
+                                <button class="px-3 py-2 hover:bg-gray-100 rounded">🖼️ Image</button>
+                                <button class="px-3 py-2 hover:bg-gray-100 rounded">📹 Video</button>
+                            </div>
+
+                            <textarea
+                                placeholder="Commencez à écrire votre histoire...
+
+✨ Utilisez l'éditeur WYSIWYG pour formater votre texte
+📝 Ajoutez des images, vidéos et liens
+🎯 Optimisez votre contenu pour le SEO"
+                                class="w-full min-h-[500px] text-lg focus:outline-none resize-none border border-gray-200 rounded-lg p-4"
+                            ></textarea>
+
+                            <div class="mt-8 p-6 bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-lg">
+                                <h3 class="font-semibold mb-2 flex items-center gap-2">
+                                    <span class="text-2xl">🤖</span>
+                                    Optimisation IA disponible
+                                </h3>
+                                <p class="text-sm text-gray-600 mb-4">
+                                    L'intelligence artificielle peut vous aider à :
+                                </p>
+                                <ul class="text-sm text-gray-600 mb-4 space-y-1">
+                                    <li>✓ Améliorer votre SEO et visibilité</li>
+                                    <li>✓ Corriger la grammaire et l'orthographe</li>
+                                    <li>✓ Optimiser la structure de l'article</li>
+                                    <li>✓ Générer des suggestions de titres</li>
+                                    <li>✓ Traduire dans toutes les langues</li>
+                                </ul>
+                                <button class="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-3 rounded-lg font-semibold hover:opacity-90">
+                                    ✨ Optimiser avec l'IA
+                                </button>
+                            </div>
+
+                            <div class="mt-6 p-6 bg-yellow-50 border border-yellow-200 rounded-lg">
+                                <h3 class="font-semibold mb-2">💰 Monétisation</h3>
+                                <p class="text-sm text-gray-600 mb-3">
+                                    Activez la monétisation pour gagner de l'argent avec vos articles
+                                </p>
+                                <div class="flex gap-3">
+                                    <button class="px-4 py-2 bg-yellow-600 text-white rounded-lg">
+                                        Activer les abonnements
+                                    </button>
+                                    <button class="px-4 py-2 border border-yellow-600 text-yellow-600 rounded-lg">
+                                        En savoir plus
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            },
+
+            renderForumCreator() {
+                return `
+                    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                        <div class="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                            <div class="border-b border-gray-200 p-4">
+                                <h2 class="text-xl font-bold">Créer un Forum</h2>
+                            </div>
+
+                            <div class="p-6 space-y-4">
+                                <div>
+                                    <label class="block text-sm font-medium mb-2">Nom du forum</label>
+                                    <input
+                                        type="text"
+                                        placeholder="Ex: Passionnés de technologie"
+                                        class="w-full border border-gray-300 rounded-lg px-3 py-2"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label class="block text-sm font-medium mb-2">Description</label>
+                                    <textarea
+                                        placeholder="Décrivez votre forum..."
+                                        class="w-full border border-gray-300 rounded-lg px-3 py-2 h-24 resize-none"
+                                    ></textarea>
+                                </div>
+
+                                <div>
+                                    <label class="block text-sm font-medium mb-2">Photo de couverture (URL)</label>
+                                    <input
+                                        type="url"
+                                        placeholder="https://exemple.com/image.jpg"
+                                        class="w-full border border-gray-300 rounded-lg px-3 py-2"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label class="block text-sm font-medium mb-2">Type de forum</label>
+                                    <select class="w-full border border-gray-300 rounded-lg px-3 py-2">
+                                        <option value="public">🌍 Public - Visible par tous</option>
+                                        <option value="private-visible">👁️ Privé visible - Demande d'accès requise</option>
+                                        <option value="private-hidden">🔒 Privé invisible - Sur invitation uniquement</option>
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label class="block text-sm font-medium mb-2">Règlement du forum</label>
+                                    <textarea
+                                        placeholder="Définissez les règles de votre communauté..."
+                                        class="w-full border border-gray-300 rounded-lg px-3 py-2 h-32 resize-none"
+                                    ></textarea>
+                                </div>
+
+                                <div class="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                                    <h3 class="font-semibold text-sm mb-2">🎯 Capacités du forum</h3>
+                                    <ul class="text-sm text-gray-600 space-y-1">
+                                        <li>✓ Jusqu'à 500 000 membres</li>
+                                        <li>✓ Appels vidéo jusqu'à 9 participants</li>
+                                        <li>✓ Partage de fichiers jusqu'à 2 Go</li>
+                                        <li>✓ Outils de modération avancés</li>
+                                        <li>✓ Statistiques et analytics IA</li>
+                                    </ul>
+                                </div>
+
+                                <div class="flex gap-3">
+                                    <button
+                                        onclick="app.showForumCreator = false; app.render();"
+                                        class="flex-1 border border-gray-300 rounded-lg py-3 hover:bg-gray-50"
+                                    >
+                                        Annuler
+                                    </button>
+                                    <button class="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg py-3 hover:opacity-90">
+                                        Créer le forum
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            },
+
+            renderPhiloneisteCreator() {
+                return `
+                    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                        <div class="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+                            <div class="border-b border-gray-200 p-4">
+                                <h2 class="text-xl font-bold mb-2">Créer un Philonéiste</h2>
+                                <p class="text-sm text-gray-600">Vidéo courte - Maximum 1 minute 5 secondes</p>
+                            </div>
+                            
+                            <div class="p-6 space-y-4">
+                                <div>
+                                    <label class="block text-sm font-medium mb-2">URL de la vidéo</label>
+                                    <input
+                                        type="url"
+                                        placeholder="https://exemple.com/video.mp4"
+                                        class="w-full border border-gray-300 rounded-lg px-3 py-2"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label class="block text-sm font-medium mb-2">Titre</label>
+                                    <input
+                                        type="text"
+                                        placeholder="Donnez un titre accrocheur..."
+                                        class="w-full border border-gray-300 rounded-lg px-3 py-2"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label class="block text-sm font-medium mb-2">Description</label>
+                                    <textarea
+                                        placeholder="Décrivez votre vidéo..."
+                                        class="w-full border border-gray-300 rounded-lg px-3 py-2 h-20 resize-none"
+                                    ></textarea>
+                                </div>
+
+                                <div>
+                                    <label class="block text-sm font-medium mb-2">Lien externe (optionnel)</label>
+                                    <input
+                                        type="url"
+                                        placeholder="Lien vers un blog ou cours associé"
+                                        class="w-full border border-gray-300 rounded-lg px-3 py-2"
+                                    />
+                                    <p class="text-xs text-gray-500 mt-1">
+                                        📎 Le lien sera affiché avec une prévisualisation dans la vidéo
+                                    </p>
+                                </div>
+
+                                <div>
+                                    <label class="block text-sm font-medium mb-2">Hashtags</label>
+                                    <input
+                                        type="text"
+                                        placeholder="#technologie #innovation #ia"
+                                        class="w-full border border-gray-300 rounded-lg px-3 py-2"
+                                    />
+                                </div>
+
+                                <div class="flex gap-3 pt-2">
+                                    <button
+                                        onclick="app.showPhiloneisteCreator = false; app.render();"
+                                        class="flex-1 border border-gray-300 rounded-lg py-3 hover:bg-gray-50"
+                                    >
+                                        Annuler
+                                    </button>
+                                    <button class="flex-1 bg-gradient-to-r from-orange-600 to-pink-600 text-white rounded-lg py-3 hover:opacity-90">
+                                        Publier
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            },
+
+            attachEventListeners() {
+                const phoneInput = document.getElementById('phone-input');
+                if (phoneInput) {
+                    phoneInput.addEventListener('input', (e) => {
+                        this.phone = e.target.value;
+                    });
+                }
+
+                const codeInput = document.getElementById('code-input');
+                if (codeInput) {
+                    codeInput.addEventListener('input', (e) => {
+                        this.code = e.target.value;
+                    });
+                }
+            }
+        };
+
+        const app = App;
+        app.init();
+    </script>
+</body>
+</html>
